@@ -9,4 +9,5 @@ openpyxl>=3.0.0
 langchain
 openai
 joblib
-python-dotenv 
+python-dotenv
+xgboost 
