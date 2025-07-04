@@ -7,6 +7,8 @@ import joblib
 from typing import List
 import os
 from dotenv import load_dotenv
+from langchain.chat_models import ChatOpenAI
+from langchain.agents import initialize_agent, Tool
 load_dotenv()
 
 app = FastAPI()
@@ -25,6 +27,10 @@ required_fields = [
 class FeatureInput(BaseModel):
     features: List[float]
     model: str = 'xgboost'  # or 'random_forest'
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
 
 @app.post("/predict_raw")
 def predict_raw(data: FeatureInput):
@@ -63,6 +69,101 @@ def predict_csv(file: UploadFile = File(...), model: str = Form('xgboost')):
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 
+# --- LangChain tools for chat agent ---
+def parse_features(input_str):
+    try:
+        features = [float(x.strip()) for x in input_str.split(',')]
+        return features
+    except Exception:
+        return None
+
+def predict_arr_growth_xgb(features):
+    X = np.array([features])
+    prediction = model_xgb.predict(X)
+    return prediction.tolist()
+
+def predict_arr_growth_rf(features):
+    X = np.array([features])
+    prediction = model_rf.predict(X)
+    return prediction.tolist()
+
+def arr_tool_xgb(input_str):
+    features = parse_features(input_str)
+    if features is None or len(features) != 28:
+        return "Please provide exactly 28 comma-separated features (7 per quarter for 4 quarters)."
+    result = predict_arr_growth_xgb(features)
+    return f"[XGBoost] Predicted ARR YoY growth for the next 4 quarters: {result}"
+
+def arr_tool_rf(input_str):
+    features = parse_features(input_str)
+    if features is None or len(features) != 28:
+        return "Please provide exactly 28 comma-separated features (7 per quarter for 4 quarters)."
+    result = predict_arr_growth_rf(features)
+    return f"[Random Forest] Predicted ARR YoY growth for the next 4 quarters: {result}"
+
+def csv_tool(input_str, model_choice='xgboost'):
+    try:
+        if os.path.exists(input_str):
+            df = pd.read_csv(input_str)
+        else:
+            from io import StringIO
+            df = pd.read_csv(StringIO(input_str))
+    except Exception as e:
+        return f"Could not read CSV: {e}"
+    try:
+        if len(df) < 4:
+            return "CSV must have at least 4 rows (quarters)."
+        df_last4 = df.tail(4)
+        features = []
+        for _, row in df_last4.iterrows():
+            for field in required_fields:
+                features.append(float(row[field]))
+        if len(features) != 28:
+            return "CSV does not contain all required fields for 4 quarters."
+        if model_choice == 'random_forest':
+            result = predict_arr_growth_rf(features)
+            return f"[Random Forest] Predicted ARR YoY growth for the next 4 quarters: {result}"
+        else:
+            result = predict_arr_growth_xgb(features)
+            return f"[XGBoost] Predicted ARR YoY growth for the next 4 quarters: {result}"
+    except Exception as e:
+        return f"Error processing CSV: {e}"
+
+from langchain.tools import Tool as LC_Tool
+arr_growth_tool_xgb = LC_Tool(
+    name="XGBoost ARR Growth Predictor",
+    func=arr_tool_xgb,
+    description="Predicts ARR YoY growth for the next 4 quarters using the XGBoost multi-output model. Input: 28 comma-separated features."
+)
+arr_growth_tool_rf = LC_Tool(
+    name="Random Forest ARR Growth Predictor",
+    func=arr_tool_rf,
+    description="Predicts ARR YoY growth for the next 4 quarters using the Random Forest multi-output model. Input: 28 comma-separated features."
+)
+csv_growth_tool_xgb = LC_Tool(
+    name="XGBoost CSV ARR Growth Predictor",
+    func=lambda s: csv_tool(s, model_choice='xgboost'),
+    description="Predicts ARR YoY growth for the next 4 quarters using XGBoost from a CSV file or CSV string."
+)
+csv_growth_tool_rf = LC_Tool(
+    name="Random Forest CSV ARR Growth Predictor",
+    func=lambda s: csv_tool(s, model_choice='random_forest'),
+    description="Predicts ARR YoY growth for the next 4 quarters using Random Forest from a CSV file or CSV string."
+)
+
+llm = ChatOpenAI(temperature=0, openai_api_key=os.getenv("OPENAI_API_KEY"))
+agent = initialize_agent(
+    tools=[arr_growth_tool_xgb, arr_growth_tool_rf, csv_growth_tool_xgb, csv_growth_tool_rf],
+    llm=llm,
+    agent_type="chat-zero-shot-react-description",
+    verbose=True
+)
+
+@app.post("/chat")
+def chat_endpoint(request: ChatRequest):
+    response = agent.run(request.message)
+    return {"response": response}
+
 @app.get("/")
 def root():
-    return {"message": "ARR Growth Prediction API. Use /predict_raw or /predict_csv."} 
+    return {"message": "ARR Growth Prediction API. Use /predict_raw, /predict_csv, or /chat."} 
