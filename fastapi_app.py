@@ -184,50 +184,33 @@ def chat_endpoint(request: ChatRequest):
     prediction_triggers = [
         "predict", "arr", "features", "csv", "growth", "quarter", "model", "forecast", "projection"
     ]
-    # Keywords that indicate a direct prediction request
     direct_prediction_keywords = ["predict", "forecast", "projection", "csv", "features", "model"]
 
+    import re
+    feature_numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", request.message)
+    is_data_provided = len(feature_numbers) == 28 or "csv" in message
+
     # If the user has a preferred model and it's a prediction request, prepend instruction
-    if preferred_model and any(kw in message for kw in direct_prediction_keywords):
+    if preferred_model and is_data_provided:
         message = f"Use the {preferred_model} model. {request.message}"
 
-    # If message is a prediction request (strict routing)
-    if any(kw in message for kw in prediction_triggers):
+    # Only use the agent/tools if the user provides 28 features or mentions a CSV
+    if is_data_provided:
         try:
-            # Try to extract 28 features from the message (comma or space separated numbers)
-            import re
-            feature_numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", request.message)
-            if len(feature_numbers) == 28:
-                agent_response = agent.run(request.message)
-                numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
-                if len(numbers) >= 4:
-                    quarterly_growth = [float(n) for n in numbers[:4]]
-                    return {
-                        "response": agent_response,
-                        "data": {"quarterly_growth": quarterly_growth}
-                    }
-                else:
-                    return {"response": agent_response}
-            else:
-                # Not enough features for a real prediction
-                required_fields = [
-                    "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
-                    "EBITDA", "Cash Burn (OCF & ICF)", "LTM Rule of 40% (ARR)", "Quarter Num"
-                ]
-                field_list = ', '.join(required_fields)
+            agent_response = agent.run(request.message)
+            numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
+            if len(numbers) >= 4:
+                quarterly_growth = [float(n) for n in numbers[:4]]
                 return {
-                    "response": (
-                        "This doesn't suffice for an accurate prediction. "
-                        "To run the model, I need 28 features (7 per quarter for 4 quarters). "
-                        "Would you like me to list the required data fields? "
-                        f"Here they are: {field_list} (for each of the last 4 quarters). "
-                        "Or you can upload a CSV with these columns."
-                    )
+                    "response": agent_response,
+                    "data": {"quarterly_growth": quarterly_growth}
                 }
+            else:
+                return {"response": agent_response}
         except Exception as e:
             return {"response": f"Sorry, there was an error: {str(e)}"}
     else:
-        # General chat with friendly, personalized system prompt and conversation history
+        # All other messages (including questions about prediction capability) go to the LLM
         greeting = f"Hi {name}!" if name else "Hi!"
         system_prompt = (
             f"{greeting} I'm your venture prediction assistant. "
