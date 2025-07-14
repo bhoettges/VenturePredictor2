@@ -35,6 +35,7 @@ class ChatRequest(BaseModel):
     message: str
     name: str = None  # Optional user name
     preferred_model: str = None  # Optional model preference
+    history: list = None  # Optional conversation history
 
 @app.post("/predict_raw")
 def predict_raw(data: FeatureInput):
@@ -167,12 +168,11 @@ def chat_endpoint(request: ChatRequest):
     message = request.message.lower()
     name = request.name
     preferred_model = request.preferred_model
+    history = request.history or []
 
-    # Expanded keywords for specialized agent and VC context
-    prediction_keywords = [
-        "arr", "growth", "predict", "csv", "random forest", "xgboost",
-        "forecast", "projection", "machine learning", "model", "quarter", "future revenue",
-        "venture capital", "valuation", "funding", "startup", "investment", "benchmark"
+    # Strict triggers for prediction requests
+    prediction_triggers = [
+        "predict", "arr", "features", "csv", "growth", "quarter", "model", "forecast", "projection"
     ]
     # Keywords that indicate a direct prediction request
     direct_prediction_keywords = ["predict", "forecast", "projection", "csv", "features", "model"]
@@ -181,42 +181,60 @@ def chat_endpoint(request: ChatRequest):
     if preferred_model and any(kw in message for kw in direct_prediction_keywords):
         message = f"Use the {preferred_model} model. {request.message}"
 
-    # If message is a direct prediction request
-    if any(kw in message for kw in direct_prediction_keywords):
+    # If message is a prediction request (strict routing)
+    if any(kw in message for kw in prediction_triggers):
         try:
-            agent_response = agent.run(request.message)
+            # Try to extract 28 features from the message (comma or space separated numbers)
             import re
-            numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
-            if len(numbers) >= 4:
-                quarterly_growth = [float(n) for n in numbers[:4]]
-                return {
-                    "response": agent_response,
-                    "data": {"quarterly_growth": quarterly_growth}
-                }
+            feature_numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", request.message)
+            if len(feature_numbers) == 28:
+                agent_response = agent.run(request.message)
+                numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
+                if len(numbers) >= 4:
+                    quarterly_growth = [float(n) for n in numbers[:4]]
+                    return {
+                        "response": agent_response,
+                        "data": {"quarterly_growth": quarterly_growth}
+                    }
+                else:
+                    return {"response": agent_response}
             else:
-                return {"response": agent_response}
+                # Not enough features for a real prediction
+                required_fields = [
+                    "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
+                    "EBITDA", "Cash Burn (OCF & ICF)", "LTM Rule of 40% (ARR)", "Quarter Num"
+                ]
+                field_list = ', '.join(required_fields)
+                return {
+                    "response": (
+                        "This doesn't suffice for an accurate prediction. "
+                        "To run the model, I need 28 features (7 per quarter for 4 quarters). "
+                        "Would you like me to list the required data fields? "
+                        f"Here they are: {field_list} (for each of the last 4 quarters). "
+                        "Or you can upload a CSV with these columns."
+                    )
+                }
         except Exception as e:
             return {"response": f"Sorry, there was an error: {str(e)}"}
-    # If message is about VC or related but not a direct prediction request
-    elif any(kw in message for kw in prediction_keywords):
-        greeting = f"Hi {name}, " if name else "Hi, "
-        nudge = (
-            f"{greeting}you're talking about venture capital and predictions. "
-            "Would you like to predict your future ARR or revenue using a machine learning model? "
-            "If so, just provide your data or upload a CSV! Otherwise, feel free to keep chatting."
-        )
-        return {"response": nudge}
     else:
-        # General chat with friendly, personalized system prompt
+        # General chat with friendly, personalized system prompt and conversation history
         greeting = f"Hi {name}!" if name else "Hi!"
         system_prompt = (
             f"{greeting} I'm your venture prediction assistant. "
-            "Would you like to predict your future ARR using a machine learning model, "
-            "or would you like to chat about something else? "
+            "If the user seems interested in predictions, you may offer, but don’t be pushy. "
+            "Otherwise, just chat naturally. "
             "If you want a prediction, just tell me your data or upload a CSV!"
         )
-        full_prompt = f"{system_prompt}\n\nUser: {request.message}"
-        response = llm.invoke(full_prompt).content
+        # Build conversation history for the LLM
+        conversation = [
+            {"role": "system", "content": system_prompt}
+        ]
+        for msg in history:
+            if "role" in msg and "content" in msg:
+                conversation.append({"role": msg["role"], "content": msg["content"]})
+        conversation.append({"role": "user", "content": request.message})
+        # Use the LLM's invoke method with the conversation
+        response = llm.invoke(conversation).content
         return {"response": response}
 
 @app.get("/")
