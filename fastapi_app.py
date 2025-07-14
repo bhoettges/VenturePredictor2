@@ -11,10 +11,20 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent
 from langchain.tools import Tool as LC_Tool
 import re
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 app = FastAPI()
+
+# Add CORS middleware (allow all origins for now)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For production, specify your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load models at startup
 XGB_MODEL_PATH = 'xgboost_multi_model.pkl'
