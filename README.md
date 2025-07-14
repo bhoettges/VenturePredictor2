@@ -6,7 +6,7 @@ This project predicts ARR YoY growth for companies using machine learning models
 - Data loading and preprocessing from Excel
 - Time-series and single-output ML models (XGBoost, Random Forest, SVR)
 - Visualization of feature importance, predictions, and residuals
-- **NEW:** Conversational chat agent powered by LangChain and OpenAI for interactive predictions
+- **NEW:** Conversational chat agent powered by LangChain and OpenAI for interactive predictions via a web API
 
 ## Requirements
 - Python 3.8+
@@ -20,13 +20,15 @@ Run the training script to train and save your ML model:
 python3 main.py
 ```
 
-### 2. Run the LangChain Chat Agent
-A new script (e.g., `chat_agent.py`) will let you interact with your model via a conversational interface:
+### 2. Run the FastAPI Backend
+Start the FastAPI server (locally or on Render):
 ```bash
-python3 chat_agent.py
+uvicorn fastapi_app:app --reload
 ```
 
-You can then ask questions or provide company data in natural language, and the agent will guide you and return predictions.
+This will expose endpoints for predictions and a chat endpoint powered by LangChain and OpenAI.
+
+You can then build a web frontend (e.g., React) that interacts with the `/chat` endpoint for a conversational experience.
 
 ## Data
 - Place your Excel data file (e.g., `202402_Copy.xlsx`) in the project directory.
@@ -34,5 +36,9 @@ You can then ask questions or provide company data in natural language, and the 
 ## Visualization
 - Output plots are saved in the `output/` directory.
 
+## Deployment
+- Deploy the FastAPI backend to [Render](https://render.com/) or another cloud provider for production use.
+- (Optional) Deploy your frontend separately (e.g., Vercel, Netlify).
+
 ## Notes
-- The previous FastAPI and Docker setup has been removed in favor of a more interactive chat-based workflow. 
+- The previous CLI agent and Docker setup have been removed in favor of a web-based API workflow. 

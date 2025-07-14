@@ -7,8 +7,10 @@ import joblib
 from typing import List
 import os
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import initialize_agent, Tool
+from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent
+from langchain.tools import Tool as LC_Tool
+
 load_dotenv()
 
 app = FastAPI()
@@ -30,7 +32,6 @@ class FeatureInput(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: list = []
 
 @app.post("/predict_raw")
 def predict_raw(data: FeatureInput):
@@ -129,7 +130,6 @@ def csv_tool(input_str, model_choice='xgboost'):
     except Exception as e:
         return f"Error processing CSV: {e}"
 
-from langchain.tools import Tool as LC_Tool
 arr_growth_tool_xgb = LC_Tool(
     name="XGBoost ARR Growth Predictor",
     func=arr_tool_xgb,
@@ -161,7 +161,24 @@ agent = initialize_agent(
 
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
-    response = agent.run(request.message)
+    message = request.message.lower()
+    # Keywords for specialized agent
+    keywords = ["arr", "growth", "predict", "csv", "random forest", "xgboost"]
+    if any(kw in message for kw in keywords):
+        try:
+            response = agent.run(request.message)
+        except Exception as e:
+            response = f"Sorry, there was an error: {str(e)}"
+    else:
+        # Use the LLM directly for general chat, with a friendly system prompt
+        system_prompt = (
+            "Hi! I'm your venture prediction assistant. "
+            "Would you like to predict your future ARR using a machine learning model, "
+            "or would you like to chat about something else? "
+            "If you want a prediction, just tell me your data or upload a CSV!"
+        )
+        full_prompt = f"{system_prompt}\n\nUser: {request.message}"
+        response = llm.invoke(full_prompt).content
     return {"response": response}
 
 @app.get("/")
