@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent
 from langchain.tools import Tool as LC_Tool
+import re
 
 load_dotenv()
 
@@ -32,6 +33,8 @@ class FeatureInput(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    name: str = None  # Optional user name
+    preferred_model: str = None  # Optional model preference
 
 @app.post("/predict_raw")
 def predict_raw(data: FeatureInput):
@@ -162,24 +165,59 @@ agent = initialize_agent(
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
     message = request.message.lower()
-    # Keywords for specialized agent
-    keywords = ["arr", "growth", "predict", "csv", "random forest", "xgboost"]
-    if any(kw in message for kw in keywords):
+    name = request.name
+    preferred_model = request.preferred_model
+
+    # Expanded keywords for specialized agent and VC context
+    prediction_keywords = [
+        "arr", "growth", "predict", "csv", "random forest", "xgboost",
+        "forecast", "projection", "machine learning", "model", "quarter", "future revenue",
+        "venture capital", "valuation", "funding", "startup", "investment", "benchmark"
+    ]
+    # Keywords that indicate a direct prediction request
+    direct_prediction_keywords = ["predict", "forecast", "projection", "csv", "features", "model"]
+
+    # If the user has a preferred model and it's a prediction request, prepend instruction
+    if preferred_model and any(kw in message for kw in direct_prediction_keywords):
+        message = f"Use the {preferred_model} model. {request.message}"
+
+    # If message is a direct prediction request
+    if any(kw in message for kw in direct_prediction_keywords):
         try:
-            response = agent.run(request.message)
+            agent_response = agent.run(request.message)
+            import re
+            numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
+            if len(numbers) >= 4:
+                quarterly_growth = [float(n) for n in numbers[:4]]
+                return {
+                    "response": agent_response,
+                    "data": {"quarterly_growth": quarterly_growth}
+                }
+            else:
+                return {"response": agent_response}
         except Exception as e:
-            response = f"Sorry, there was an error: {str(e)}"
+            return {"response": f"Sorry, there was an error: {str(e)}"}
+    # If message is about VC or related but not a direct prediction request
+    elif any(kw in message for kw in prediction_keywords):
+        greeting = f"Hi {name}, " if name else "Hi, "
+        nudge = (
+            f"{greeting}you're talking about venture capital and predictions. "
+            "Would you like to predict your future ARR or revenue using a machine learning model? "
+            "If so, just provide your data or upload a CSV! Otherwise, feel free to keep chatting."
+        )
+        return {"response": nudge}
     else:
-        # Use the LLM directly for general chat, with a friendly system prompt
+        # General chat with friendly, personalized system prompt
+        greeting = f"Hi {name}!" if name else "Hi!"
         system_prompt = (
-            "Hi! I'm your venture prediction assistant. "
+            f"{greeting} I'm your venture prediction assistant. "
             "Would you like to predict your future ARR using a machine learning model, "
             "or would you like to chat about something else? "
             "If you want a prediction, just tell me your data or upload a CSV!"
         )
         full_prompt = f"{system_prompt}\n\nUser: {request.message}"
         response = llm.invoke(full_prompt).content
-    return {"response": response}
+        return {"response": response}
 
 @app.get("/")
 def root():
