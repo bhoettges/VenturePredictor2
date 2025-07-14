@@ -8,6 +8,7 @@ seaborn>=0.12.0
 openpyxl>=3.0.0
 langchain
 langchain-community
+langchain-openai
 openai
 joblib
 python-dotenv
