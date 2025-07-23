@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "creator": "Balthasar Hoettges",
+    "project_name": "Venture Prophet",
+    "purpose": "Forecast ARR YoY growth for VC companies",
+    "contact": "balthasar@hoettges.io",
+    "data_supplier": "DTCP (a venture capital company)"
+  },
+  "data_supplier_info": {
+    "name": "DTCP",
+    "type": "Venture Capital Company",
+    "description": "DTCP is a global investment management platform focused on digital transformation, investing in growth-stage technology companies and supporting innovation in the venture capital ecosystem."
+  },
+  "model_details": {
+    "models": ["XGBoost", "Random Forest"],
+    "prediction_target": "ARR YoY growth for the next 4 quarters",
+    "last_trained": "2024-05-01",
+    "performance": {
+      "r2": 0.82,
+      "mae": 3.5
+    }
+  },
+  "data_description": {
+    "features": [
+      "ARR YoY Growth (in %)",
+      "Revenue YoY Growth (in %)",
+      "Gross Margin (in %)",
+      "EBITDA",
+      "Cash Burn (OCF & ICF)",
+      "LTM Rule of 40% (ARR)",
+      "Quarter Num"
+    ],
+    "time_period": "FY2018–FY2024",
+    "notes": "Filtered for ARR 1M–10M, missing values imputed by median per company."
+  },
+  "limitations": [
+    "Predictions are based on historical data and may not reflect future market conditions.",
+    "Model performance may vary for companies outside the training distribution."
+  ],
+  "disclaimer": "This tool is for informational purposes only and does not constitute financial advice.",
+  "support_info": {
+    "email": "support@ventureprophet.com",
+    "website": "https://ventureprophet.com"
+  },
+  "faqs": [
+    {
+      "question": "What is ARR?",
+      "answer": "ARR stands for Annual Recurring Revenue."
+    },
+    {
+      "question": "How do I upload data?",
+      "answer": "You can upload a CSV file using the /predict_csv endpoint."
+    },
+    {
+      "question": "What features are required for a prediction?",
+      "answer": "You need to provide 28 features: 7 per quarter for 4 quarters. The required features are: ARR YoY Growth (in %), Revenue YoY Growth (in %), Gross Margin (in %), EBITDA, Cash Burn (OCF & ICF), LTM Rule of 40% (ARR), and Quarter Num."
+    },
+    {
+      "question": "How accurate are the predictions?",
+      "answer": "The model achieves an R² score of approximately 0.82 and a mean absolute error (MAE) of 3.5 on the test set."
+    },
+    {
+      "question": "Can I use this for companies outside the VC space?",
+      "answer": "The model is trained primarily on VC-backed companies. Predictions for companies outside this distribution may be less reliable."
+    }
+  ]
+} 

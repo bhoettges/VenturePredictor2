@@ -12,6 +12,8 @@ from langchain.agents import initialize_agent
 from langchain.tools import Tool as LC_Tool
 import re
 from fastapi.middleware.cors import CORSMiddleware
+import json
+from gpr_analysis import gpr_traffic_light_analysis
 
 load_dotenv()
 
@@ -31,6 +33,13 @@ XGB_MODEL_PATH = 'xgboost_multi_model.pkl'
 RF_MODEL_PATH = 'random_forest_model.pkl'
 model_xgb = joblib.load(XGB_MODEL_PATH)
 model_rf = joblib.load(RF_MODEL_PATH)
+
+# Load all GPT-accessible info from gpt_info.json
+try:
+    with open("gpt_info.json") as f:
+        GPT_INFO = json.load(f)
+except Exception:
+    GPT_INFO = {}
 
 required_fields = [
     "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
@@ -201,19 +210,44 @@ def chat_endpoint(request: ChatRequest):
             numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", agent_response)
             if len(numbers) >= 4:
                 quarterly_growth = [float(n) for n in numbers[:4]]
+                # Try to extract R2 score from the agent response if present
+                r2_score = None
+                r2_match = re.search(r"r2[\s:=-]*([0-9]*\.?[0-9]+)", agent_response, re.IGNORECASE)
+                if r2_match:
+                    r2_score = float(r2_match.group(1))
+                # Build a prompt for the LLM to generate a human-friendly analysis
+                analysis_prompt = (
+                    "Here are the results of the financial forecast:\n"
+                    f"Predicted ARR YoY growth for the next 4 quarters: {quarterly_growth}\n"
+                    f"Model R² score: {r2_score if r2_score is not None else 'N/A'}\n"
+                    "Please provide a clear, human-friendly analysis of these results, including any risks or opportunities you see."
+                )
+                analysis = llm.invoke(analysis_prompt).content
                 return {
-                    "response": agent_response,
-                    "data": {"quarterly_growth": quarterly_growth}
+                    "response": analysis,
+                    "data": {
+                        "quarterly_growth": quarterly_growth,
+                        "r2_score": r2_score
+                    }
                 }
             else:
                 return {"response": agent_response}
         except Exception as e:
             return {"response": f"Sorry, there was an error: {str(e)}"}
     else:
-        # All other messages (including questions about prediction capability) go to the LLM
         greeting = f"Hi {name}!" if name else "Hi!"
+        # Add project info to the system prompt from GPT_INFO
+        project_info = GPT_INFO.get("project_info", {})
+        project_info_str = " ".join([
+            f"Creator: {project_info.get('creator', '')}.",
+            f"Project name: {project_info.get('project_name', '')}.",
+            f"Purpose: {project_info.get('purpose', '')}.",
+            f"Contact: {project_info.get('contact', '')}."
+        ])
         system_prompt = (
             f"{greeting} I'm your venture prediction assistant. "
+            f"Project info: {project_info_str} "
+            "If the user asks about the project, answer using this info. "
             "If the user seems interested in predictions, you may offer, but don’t be pushy. "
             "Otherwise, just chat naturally. "
             "If you want a prediction, just tell me your data or upload a CSV!"
@@ -229,6 +263,12 @@ def chat_endpoint(request: ChatRequest):
         # Use the LLM's invoke method with the conversation
         response = llm.invoke(conversation).content
         return {"response": response}
+
+@app.get("/makro-analysis")
+def makro_analysis():
+    """Return the GPR traffic light analysis for the last year."""
+    gpr = gpr_traffic_light_analysis()
+    return {"gpr": gpr}
 
 @app.get("/")
 def root():
