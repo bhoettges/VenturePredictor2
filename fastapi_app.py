@@ -13,7 +13,7 @@ from langchain.tools import Tool as LC_Tool
 import re
 from fastapi.middleware.cors import CORSMiddleware
 import json
-from gpr_analysis import gpr_traffic_light_analysis, gprh_trend_analysis
+from gpr_analysis import gprh_trend_analysis
 
 load_dotenv()
 
