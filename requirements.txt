@@ -13,5 +13,5 @@ openai
 joblib
 python-dotenv
 xgboost
-python-multipart 
-# sqlite3 (standard library) 
+python-multipart   
+xlrd>=2.0.1 
