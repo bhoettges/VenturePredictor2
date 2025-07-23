@@ -26,12 +26,16 @@ def fetch_and_cache_gpr():
 
 def load_gprh_dataframe():
     cache_path = fetch_and_cache_gpr()
-    df = pd.read_excel(cache_path, skiprows=1)
-    # Expect columns: 'Year', 'Month', 'GPRH'
-    df = df[['Year', 'Month', 'GPRH']].dropna()
-    df['Date'] = pd.to_datetime(df[['Year', 'Month']].assign(DAY=1))
-    df = df.set_index('Date').sort_index()
-    return df[['GPRH']]
+    # Read the correct columns and parse 'month' as datetime
+    df = pd.read_excel(
+        cache_path,
+        usecols=["month", "GPRH"],
+        parse_dates=["month"]
+    )
+    df = df.dropna(subset=["month", "GPRH"])
+    df = df.sort_values("month")
+    df = df.set_index("month")
+    return df[["GPRH"]]
 
 
 def gprh_trend_analysis():
