@@ -38,9 +38,14 @@ def load_vix_dataframe():
 
 def vix_trend_analysis():
     df = load_vix_dataframe()
-    # Use last 12 months (assume daily data, so resample to monthly mean)
+    # Use last 12 months (resample to monthly mean)
     df_monthly = df.resample('M').mean()
-    last_12 = df_monthly[-12:]
+    
+    # Get the actual last 12 months, not just last 12 rows
+    end_date = df_monthly.index.max()
+    start_date = end_date - pd.DateOffset(months=11)  # 12 months total
+    last_12 = df_monthly[(df_monthly.index >= start_date) & (df_monthly.index <= end_date)]
+    
     values = last_12["vix"].round(2).tolist()
     first = values[0]
     last_val = values[-1]
@@ -52,7 +57,7 @@ def vix_trend_analysis():
             "High VIX (>30) – Volatility increased\n"
             "The VIX index is above 30, indicating heightened market uncertainty and risk aversion.\n"
             "VC implication: Fundraising slows, valuations compress, and exits become more challenging.\n"
-            "Tactical edge: Focus on portfolio resilience, extend runway, and prioritize capital-efficient growth."
+            "Tactical edge: Focus on capital efficiency, extend runway, and prioritize capital-efficient growth."
         )
     elif last_val <= 15:
         light = 'green'

@@ -41,7 +41,12 @@ def move_trend_analysis():
     df = load_move_dataframe()
     # Use last 12 months (resample to monthly mean)
     df_monthly = df.resample('M').mean()
-    last_12 = df_monthly[-12:]
+    
+    # Get the actual last 12 months, not just last 12 rows
+    end_date = df_monthly.index.max()
+    start_date = end_date - pd.DateOffset(months=11)  # 12 months total
+    last_12 = df_monthly[(df_monthly.index >= start_date) & (df_monthly.index <= end_date)]
+    
     values = last_12["move"].round(2).tolist()
     first = values[0]
     last_val = values[-1]
