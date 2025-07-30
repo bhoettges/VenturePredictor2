@@ -32,9 +32,11 @@ def load_move_dataframe():
     df = pd.read_csv(cache_path)
     # Rename columns first, then parse dates
     df = df.rename(columns={"Date": "date", "MOVE": "move"})
-    df["date"] = pd.to_datetime(df["date"])
+    # Convert date column to datetime and ensure it's properly formatted
+    df["date"] = pd.to_datetime(df["date"], utc=True)
     df = df.dropna(subset=["move"])
     df = df.sort_values("date")
+    # Set the datetime column as index
     df = df.set_index("date")
     return df[["move"]]
 

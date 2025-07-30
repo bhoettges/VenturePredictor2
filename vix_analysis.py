@@ -30,9 +30,11 @@ def load_vix_dataframe():
     # FRED VIX CSV: columns are observation_date, VIXCLS
     # Rename columns first, then parse dates
     df = df.rename(columns={"observation_date": "date", "VIXCLS": "vix"})
-    df["date"] = pd.to_datetime(df["date"])
+    # Convert date column to datetime and ensure it's properly formatted
+    df["date"] = pd.to_datetime(df["date"], utc=True)
     df = df.dropna(subset=["vix"])
     df = df.sort_values("date")
+    # Set the datetime column as index
     df = df.set_index("date")
     return df[["vix"]]
 
