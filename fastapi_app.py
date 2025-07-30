@@ -14,6 +14,8 @@ import re
 from fastapi.middleware.cors import CORSMiddleware
 import json
 from gpr_analysis import gprh_trend_analysis
+from vix_analysis import vix_trend_analysis
+from move_analysis import move_trend_analysis
 
 load_dotenv()
 
@@ -218,18 +220,30 @@ def chat_endpoint(request: ChatRequest):
             f"Purpose: {project_info.get('purpose', '')}.",
             f"Contact: {project_info.get('contact', '')}."
         ])
-        # --- GPRH summary for system prompt ---
+        # --- GPRH, VIX, and MOVE summary for system prompt ---
         gprh = gprh_trend_analysis()
+        vix = vix_trend_analysis()
+        move = move_trend_analysis()
         gprh_summary = (
             f"Current GPRH index (geopolitical risk, last 12 months): {gprh['last_12_months_gprh']}. "
             f"Start: {gprh['start_value']}, End: {gprh['end_value']}, Change: {gprh['change']}. "
             f"Traffic light: {gprh['traffic_light']}. {gprh['opinion']} "
-            "If the user asks about macroeconomic or geopolitical risk, use this information."
+        )
+        vix_summary = (
+            f"Current VIX index (market volatility, last 12 months): {vix['last_12_months_vix']}. "
+            f"Start: {vix['start_value']}, End: {vix['end_value']}, Change: {vix['change']}. "
+            f"Traffic light: {vix['traffic_light']}. {vix['opinion']} "
+        )
+        move_summary = (
+            f"Current MOVE index (bond market volatility, last 12 months): {move['last_12_months_move']}. "
+            f"Start: {move['start_value']}, End: {move['end_value']}, Change: {move['change']}. "
+            f"Traffic light: {move['traffic_light']}. {move['opinion']} "
         )
         system_prompt = (
             f"{greeting} I'm your venture prediction assistant. "
             f"Project info: {project_info_str} "
-            f"{gprh_summary} "
+            f"{gprh_summary} {vix_summary} {move_summary} "
+            "If the user asks about macroeconomic, geopolitical risk, market volatility, or bond market volatility, use this information. "
             "If the user asks about the project, answer using this info. "
             "If the user seems interested in predictions, you may offer, but don’t be pushy. "
             "Otherwise, just chat naturally. "
@@ -247,9 +261,11 @@ def chat_endpoint(request: ChatRequest):
 
 @app.get("/makro-analysis")
 def makro_analysis():
-    """Return the GPRH trend analysis for the last year."""
+    """Return the GPRH, VIX, and MOVE trend analysis for the last year."""
     gprh = gprh_trend_analysis()
-    return {"gprh": gprh}
+    vix = vix_trend_analysis()
+    move = move_trend_analysis()
+    return {"gprh": gprh, "vix": vix, "move": move}
 
 @app.get("/")
 def root():

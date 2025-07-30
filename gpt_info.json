@@ -6,6 +6,10 @@
     "contact": "balthasar@hoettges.io",
     "data_supplier": "DTCP (a venture capital company)"
   },
+  "macro_analysis_status": {
+    "red_button": "The red button means macro analysis is turned off.",
+    "green_button": "The green button means macro analysis is turned on."
+  },
   "data_supplier_info": {
     "name": "DTCP",
     "type": "Venture Capital Company",
