@@ -27,8 +27,9 @@ def fetch_and_cache_vix():
 def load_vix_dataframe():
     cache_path = fetch_and_cache_vix()
     df = pd.read_csv(cache_path)
-    # FRED VIX CSV: columns are DATE, VIXCLS
-    df = df.rename(columns={"DATE": "date", "VIXCLS": "vix"})
+    # FRED VIX CSV: columns are observation_date, VIXCLS
+    # Rename columns first, then parse dates
+    df = df.rename(columns={"observation_date": "date", "VIXCLS": "vix"})
     df["date"] = pd.to_datetime(df["date"])
     df = df.dropna(subset=["vix"])
     df = df.sort_values("date")
