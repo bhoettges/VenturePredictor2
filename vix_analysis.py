@@ -55,26 +55,66 @@ def vix_trend_analysis():
     if last_val >= 30:
         light = 'red'
         opinion = (
-            "High VIX (>30) – Volatility increased\n"
-            "The VIX index is above 30, indicating heightened market uncertainty and risk aversion.\n"
-            "VC implication: Fundraising slows, valuations compress, and exits become more challenging.\n"
-            "Tactical edge: Focus on capital efficiency, extend runway, and prioritize capital-efficient growth."
+            "🚨 HIGH MARKET VOLATILITY (>30) - Fear Gauge Elevated\n\n"
+            "The VIX index has surged above 30, indicating extreme market fear and uncertainty. "
+            "This 'fear gauge' suggests investors are pricing in significant downside risk, "
+            "often triggered by economic uncertainty, policy changes, or systemic concerns.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Public market volatility directly impacts private valuations\n"
+            "• Fundraising becomes more challenging with extended timelines\n"
+            "• Down rounds become more common across all stages\n"
+            "• Exit valuations face 20-40% compression\n"
+            "• LPs become more conservative and demand higher returns\n"
+            "• Secondary market activity may increase as investors seek liquidity\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Extend runway by 6-12 months beyond current projections\n"
+            "• Focus on unit economics and path to profitability\n"
+            "• Consider bridge financing to weather the storm\n"
+            "• Diversify revenue streams and customer concentration\n"
+            "• Strengthen relationships with existing investors\n"
+            "• Monitor for opportunistic acquisitions of distressed assets"
         )
     elif last_val <= 15:
         light = 'green'
         opinion = (
-            "Low VIX (<15) – Volatility decreased\n"
-            "The VIX index is below 15, reflecting calm markets and investor confidence.\n"
-            "VC implication: Risk-on sentiment, easier fundraising, and higher valuations.\n"
-            "Tactical edge: Accelerate growth plans, pursue opportunistic M&A, and consider IPO windows."
+            "🟢 LOW MARKET VOLATILITY (<15) - Calm Waters Ahead\n\n"
+            "The VIX index is below 15, indicating market complacency and investor confidence. "
+            "This low volatility environment typically correlates with strong risk appetite "
+            "and favorable conditions for capital deployment.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Accelerated fundraising with improved terms and valuations\n"
+            "• Strong IPO and M&A exit environment\n"
+            "• Increased LP appetite for risk and higher allocations\n"
+            "• Favorable conditions for growth-stage investments\n"
+            "• Reduced due diligence timelines\n"
+            "• Higher multiples across all stages\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Accelerate growth initiatives and market expansion\n"
+            "• Pursue strategic M&A opportunities\n"
+            "• Consider earlier exit timing for mature companies\n"
+            "• Increase investment pace in growth-stage deals\n"
+            "• Leverage improved access to international capital\n"
+            "• Explore new markets and geographies"
         )
     else:
         light = 'yellow'
         opinion = (
-            "Moderate VIX (15–30) – Volatility stable\n"
-            "The VIX index is in a normal range, suggesting balanced risk appetite.\n"
-            "VC implication: Steady deal flow, reasonable pricing, and selective risk-taking.\n"
-            "Tactical edge: Maintain discipline, diversify bets, and monitor macro signals."
+            "🟡 MODERATE MARKET VOLATILITY (15-30) - Balanced Environment\n\n"
+            "The VIX index is in a normal range, indicating balanced market sentiment. "
+            "This environment supports steady deal flow with moderate risk-taking, "
+            "though requires ongoing monitoring of market conditions.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Normalized fundraising timelines with reasonable terms\n"
+            "• Stable valuations with slight upward bias\n"
+            "• Steady deal flow across all stages\n"
+            "• IPO windows available but timing-dependent\n"
+            "• Moderate LP appetite with selective risk-taking\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Maintain disciplined growth with measured risk-taking\n"
+            "• Balance growth investments with portfolio resilience\n"
+            "• Monitor market indicators for timing decisions\n"
+            "• Prepare contingency plans for volatility spikes\n"
+            "• Focus on quality over quantity in deal flow"
         )
     return {
         "last_12_months_vix": values,

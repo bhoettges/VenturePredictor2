@@ -49,41 +49,98 @@ def gprh_trend_analysis():
     if last >= 140:
         light = 'red'
         opinion = (
-            "High GPR (> ≈ 140) – risk increased\n"
-            "The index is sitting near 150 (June 2025), its highest level since the immediate aftermath of Russia’s 2022 invasion of Ukraine, as three live conflicts (Ukraine‑Russia, Israel‑Hamas‑Iran, and renewed Red‑Sea flashpoints) collide with an escalated U.S.–China tariff war.\n"
-            "MacroMicro\nThe Guardian\nMorning Consult Pro\n\n"
-            "VC implication: Global allocators are in “risk‑off” mode. Expect slower fundraising, tighter follow‑on rounds and a valuation haircut of 10‑20 % on late‑stage deals.\n\n"
-            "Tactical edge: Capital is flowing toward defence tech, cyber‑security, energy‑security hardware and AI‑enabled resilience platforms. Keep dry‑powder for bridge rounds and lengthen due‑diligence cycles."
+            "🚨 HIGH GEOPOLITICAL RISK (>140) - Critical Alert\n\n"
+            "The GPRH index has surged to elevated levels, indicating severe geopolitical instability. "
+            "This represents the highest risk environment since the immediate aftermath of Russia's 2022 invasion of Ukraine. "
+            "Multiple concurrent crises are creating a perfect storm: Ukraine-Russia conflict escalation, "
+            "Israel-Hamas-Iran tensions, Red Sea shipping disruptions, and intensified U.S.-China trade hostilities.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Fundraising cycles will extend 3-6 months longer than usual\n"
+            "• Late-stage valuations face 15-25% compression\n"
+            "• Cross-border M&A activity will significantly decline\n"
+            "• IPO windows may close entirely for 6-12 months\n"
+            "• LPs will demand higher risk premiums and stricter terms\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Prioritize runway extension over growth at all costs\n"
+            "• Focus on capital efficiency and unit economics\n"
+            "• Diversify supply chains away from geopolitical hotspots\n"
+            "• Build strategic reserves for bridge financing\n"
+            "• Consider defensive positioning in cybersecurity, energy security, and AI resilience\n"
+            "• Lengthen due diligence cycles and add geopolitical risk assessments"
         )
     elif last <= 80:
         light = 'green'
         opinion = (
-            "Low GPR (< ≈ 80) – risk decreased\n"
-            "A sub‑80 reading means press mentions of geopolitical tension are at least 20 % below the 2000‑09 benchmark, indicating a lull in international flashpoints and a more predictable policy backdrop.\n"
-            "federalreserve.gov\n\n"
-            "VC implication: Risk‑on sentiment returns; cross‑border M&A and IPO windows reopen, pushing growth‑stage valuations up and shortening time‑to‑term‑sheet for seed deals.\n\n"
-            "Tactical edge: Lean into expansion‑stage bets, accelerate hiring in go‑to‑market roles, and revisit markets previously deemed “too geopolitically risky.”"
+            "🟢 LOW GEOPOLITICAL RISK (<80) - Favorable Environment\n\n"
+            "The GPRH index indicates a period of relative geopolitical calm, with press mentions of "
+            "international tensions at least 20% below historical benchmarks. This suggests a more "
+            "predictable policy environment and reduced uncertainty in global markets.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Accelerated fundraising cycles with improved terms\n"
+            "• Higher valuations across all stages, especially growth\n"
+            "• Resurgence in cross-border M&A and strategic exits\n"
+            "• IPO windows reopening with strong investor appetite\n"
+            "• Increased LP confidence and risk-on sentiment\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Accelerate growth initiatives and market expansion\n"
+            "• Pursue opportunistic M&A and strategic partnerships\n"
+            "• Consider earlier exit timing for mature portfolio companies\n"
+            "• Increase investment pace in growth-stage opportunities\n"
+            "• Revisit previously 'too risky' emerging markets\n"
+            "• Leverage improved access to international capital"
         )
     elif 90 <= last <= 120:
         light = 'yellow'
         opinion = (
-            "Moderate GPR (≈ 90 – 120) – risk stable\n"
-            "The index is hovering around its long‑run mean of 100—by construction the average level during 2000‑09—signalling that geopolitical headlines are no longer intensifying but remain a constant drumbeat.\n"
-            "federalreserve.gov\n\n"
-            "VC implication: LP appetite is cautious‑but‑steady; deal volumes and pricing mirror 12‑month averages.\n\n"
-            "Tactical edge: Focus on capital‑efficient growth, diversify supply chains early, and build optionality for both strategic and IPO exits in 2026‑27."
+            "🟡 MODERATE GEOPOLITICAL RISK (90-120) - Stable but Watchful\n\n"
+            "The GPRH index is hovering around its long-term average, indicating a balanced risk environment. "
+            "While not crisis-level, geopolitical tensions remain a constant background factor that requires "
+            "ongoing monitoring and strategic adaptation.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Normalized fundraising timelines with moderate terms\n"
+            "• Stable valuations with slight upward bias\n"
+            "• Steady deal flow with selective cross-border activity\n"
+            "• IPO windows available but timing-dependent\n"
+            "• Cautious but steady LP appetite\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Maintain disciplined growth with measured risk-taking\n"
+            "• Diversify geographic exposure and supply chains\n"
+            "• Build optionality for both strategic and IPO exits\n"
+            "• Monitor macro indicators for timing decisions\n"
+            "• Balance growth investments with portfolio resilience\n"
+            "• Prepare contingency plans for risk escalation"
         )
     else:
         # For values between 80 and 90, or 120 and 140, interpolate with a generic message
         if last < 90:
             light = 'green'
             opinion = (
-                "GPR is below average, indicating a period of reduced geopolitical tension. VC sentiment is improving, but not yet fully risk-on."
+                "🟢 BELOW-AVERAGE GEOPOLITICAL RISK - Improving Conditions\n\n"
+                "The GPRH index is below historical averages, indicating improving geopolitical stability. "
+                "While not yet fully risk-on, this environment supports cautious optimism and strategic growth initiatives.\n\n"
+                "🎯 VC IMPLICATIONS:\n"
+                "• Gradually improving fundraising conditions\n"
+                "• Moderate valuation improvements expected\n"
+                "• Selective expansion opportunities emerging\n\n"
+                "💡 TACTICAL RESPONSE:\n"
+                "• Begin strategic growth planning\n"
+                "• Monitor for further risk reduction\n"
+                "• Prepare for potential market expansion"
             )
         else:
             light = 'red'
             opinion = (
-                "GPR is above average, indicating heightened but not extreme geopolitical risk. VC activity may be cautious, with selective risk-taking."
+                "🟠 ELEVATED GEOPOLITICAL RISK - Caution Required\n\n"
+                "The GPRH index is above average, indicating heightened but not extreme geopolitical tensions. "
+                "This environment requires careful navigation and defensive positioning.\n\n"
+                "🎯 VC IMPLICATIONS:\n"
+                "• Extended fundraising timelines\n"
+                "• Valuation pressure in certain sectors\n"
+                "• Increased due diligence requirements\n\n"
+                "💡 TACTICAL RESPONSE:\n"
+                "• Prioritize runway and capital efficiency\n"
+                "• Strengthen portfolio resilience\n"
+                "• Monitor for further escalation"
             )
     return {
         "last_12_months_gprh": values,

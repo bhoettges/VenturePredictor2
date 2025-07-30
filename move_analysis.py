@@ -57,26 +57,66 @@ def move_trend_analysis():
     if last_val >= 150:
         light = 'red'
         opinion = (
-            "High MOVE (>150) – Bond market volatility increased\n"
-            "The MOVE index is above 150, indicating significant uncertainty in fixed income markets.\n"
-            "VC implication: Higher cost of capital, slower fundraising, and increased caution in late-stage deals.\n"
-            "Tactical edge: Focus on capital efficiency, extend runway, and monitor interest rate risk."
+            "🚨 HIGH BOND MARKET VOLATILITY (>150) - Rate Uncertainty\n\n"
+            "The MOVE index has surged above 150, indicating extreme uncertainty in fixed income markets. "
+            "This suggests significant volatility in interest rates, often driven by central bank policy uncertainty, "
+            "inflation concerns, or credit market stress.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Higher cost of capital across all funding sources\n"
+            "• Extended fundraising cycles as LPs reassess allocations\n"
+            "• Valuation compression due to higher discount rates\n"
+            "• Reduced appetite for long-term growth investments\n"
+            "• Increased focus on profitability over growth\n"
+            "• Secondary market activity may increase for liquidity\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Extend runway by 9-18 months beyond current projections\n"
+            "• Focus on unit economics and path to profitability\n"
+            "• Diversify funding sources and reduce debt dependency\n"
+            "• Consider defensive positioning in recession-resistant sectors\n"
+            "• Strengthen relationships with existing investors\n"
+            "• Monitor for opportunistic acquisitions of rate-sensitive assets"
         )
     elif last_val <= 80:
         light = 'green'
         opinion = (
-            "Low MOVE (<80) – Bond market volatility decreased\n"
-            "The MOVE index is below 80, reflecting stable rates and predictable funding conditions.\n"
-            "VC implication: Easier access to capital, improved exit environment, and higher risk appetite.\n"
-            "Tactical edge: Accelerate growth, pursue opportunistic financing, and consider expansion."
+            "🟢 LOW BOND MARKET VOLATILITY (<80) - Stable Rate Environment\n\n"
+            "The MOVE index is below 80, indicating stable and predictable interest rate conditions. "
+            "This low volatility environment typically correlates with strong investor confidence "
+            "and favorable conditions for capital deployment.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Lower cost of capital and improved access to debt financing\n"
+            "• Accelerated fundraising with improved terms\n"
+            "• Higher valuations due to lower discount rates\n"
+            "• Strong IPO environment with stable pricing\n"
+            "• Increased LP appetite for growth investments\n"
+            "• Favorable conditions for leveraged buyouts and M&A\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Accelerate growth initiatives and market expansion\n"
+            "• Pursue strategic M&A and leveraged opportunities\n"
+            "• Consider earlier exit timing for mature companies\n"
+            "• Increase investment pace in growth-stage deals\n"
+            "• Leverage improved access to debt financing\n"
+            "• Explore new markets and geographies"
         )
     else:
         light = 'yellow'
         opinion = (
-            "Moderate MOVE (80–150) – Bond market volatility stable\n"
-            "The MOVE index is in a normal range, suggesting balanced risk in fixed income markets.\n"
-            "VC implication: Steady deal flow, moderate valuations, and selective risk-taking.\n"
-            "Tactical edge: Maintain discipline, diversify funding sources, and monitor macro trends."
+            "🟡 MODERATE BOND MARKET VOLATILITY (80-150) - Balanced Environment\n\n"
+            "The MOVE index is in a normal range, indicating balanced interest rate expectations. "
+            "This environment supports steady deal flow with moderate risk-taking, "
+            "though requires ongoing monitoring of monetary policy developments.\n\n"
+            "🎯 VC IMPLICATIONS:\n"
+            "• Normalized cost of capital with reasonable terms\n"
+            "• Stable valuations with slight upward bias\n"
+            "• Steady deal flow across all stages\n"
+            "• IPO windows available but timing-dependent\n"
+            "• Moderate LP appetite with selective risk-taking\n\n"
+            "💡 TACTICAL RESPONSE:\n"
+            "• Maintain disciplined growth with measured risk-taking\n"
+            "• Balance growth investments with portfolio resilience\n"
+            "• Monitor monetary policy indicators for timing decisions\n"
+            "• Prepare contingency plans for rate volatility\n"
+            "• Focus on quality over quantity in deal flow"
         )
     return {
         "last_12_months_move": values,
