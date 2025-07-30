@@ -40,7 +40,7 @@ def load_vix_dataframe():
 def vix_trend_analysis():
     df = load_vix_dataframe()
     # Use last 12 months (resample to monthly mean)
-    df_monthly = df.resample('M').mean()
+    df_monthly = df.resample('ME').mean()
     
     # Get the actual last 12 months, not just last 12 rows
     end_date = df_monthly.index.max()

@@ -29,8 +29,10 @@ def fetch_and_cache_move():
 
 def load_move_dataframe():
     cache_path = fetch_and_cache_move()
-    df = pd.read_csv(cache_path, parse_dates=["Date"])
+    df = pd.read_csv(cache_path)
+    # Rename columns first, then parse dates
     df = df.rename(columns={"Date": "date", "MOVE": "move"})
+    df["date"] = pd.to_datetime(df["date"])
     df = df.dropna(subset=["move"])
     df = df.sort_values("date")
     df = df.set_index("date")
@@ -40,7 +42,7 @@ def load_move_dataframe():
 def move_trend_analysis():
     df = load_move_dataframe()
     # Use last 12 months (resample to monthly mean)
-    df_monthly = df.resample('M').mean()
+    df_monthly = df.resample('ME').mean()
     
     # Get the actual last 12 months, not just last 12 rows
     end_date = df_monthly.index.max()
