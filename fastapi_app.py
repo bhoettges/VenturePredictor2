@@ -95,7 +95,7 @@ class GuidedInputRequest(BaseModel):
     q4_net_profit_loss: float
     # Optional advanced mode
     advanced_mode: bool = False
-    advanced_metrics: dict = None
+    advanced_metrics: dict | None = None
 
 # --- Utility Functions ---
 def parse_features(input_str: str):
@@ -492,7 +492,7 @@ def makro_analysis():
 
 @app.post("/predict")
 def predict(request: GuidedInputRequest):
-    """Unified forecasting endpoint that handles both basic and advanced mode using 4 quarters of data."""
+    """Unified forecasting endpoint that handles both basic and advanced mode using 4 quarters of data. MAIN ENDPOINT."""
     try:
         from guided_input_system import GuidedInputSystem
         from enhanced_prediction import EnhancedFinancialPredictor
@@ -502,7 +502,7 @@ def predict(request: GuidedInputRequest):
         guided_system = GuidedInputSystem()
         guided_system.initialize_from_training_data()
         
-        # Create DataFrame with 4 quarters of data
+        # Create DataFrame with 4 quarters of data - PREDICT ENDPOINT
         quarters_data = []
         
         # Q1 2024
@@ -585,17 +585,17 @@ def predict(request: GuidedInputRequest):
                 forecast_df.loc[i, 'Sales & Marketing'] = 0
             
             # Calculate EBITDA (simplified)
-            forecast_df.loc[i, 'EBITDA'] = row['cARR'] * (row['Gross Margin (in %)'] / 100) - row['Sales & Marketing']
+            forecast_df.loc[i, 'EBITDA'] = row['cARR'] * (row['Gross Margin (in %)'] / 100) - forecast_df.loc[i, 'Sales & Marketing']
             
             # Calculate Cash Burn (simplified)
             forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] = -forecast_df.loc[i, 'EBITDA']
             
             # Calculate LTM Rule of 40% (ARR)
-            forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = row['ARR YoY Growth (in %)'] + (row['Gross Margin (in %)'] - 50)
+            forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = forecast_df.loc[i, 'ARR YoY Growth (in %)'] + (row['Gross Margin (in %)'] - 50)
             
             # Calculate Magic Number
             if forecast_df.loc[i, 'Sales & Marketing'] > 0:
-                forecast_df.loc[i, 'Magic_Number'] = row['Net New ARR'] / forecast_df.loc[i, 'Sales & Marketing']
+                forecast_df.loc[i, 'Magic_Number'] = forecast_df.loc[i, 'Net New ARR'] / forecast_df.loc[i, 'Sales & Marketing']
             else:
                 forecast_df.loc[i, 'Magic_Number'] = 0
             
@@ -675,15 +675,6 @@ def predict(request: GuidedInputRequest):
                             elif metric_name == 'gross_margin':
                                 forecast_df.loc[i, 'Gross Margin (in %)'] = metric_value
                                 print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}%")
-                            elif metric_name == 'customers_eop':
-                                forecast_df.loc[i, 'Customers (EoP)'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'expansion_upsell':
-                                forecast_df.loc[i, 'Expansion & Upsell'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'churn_reduction':
-                                forecast_df.loc[i, 'Churn & Reduction'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
                             elif metric_name == 'ebitda':
                                 forecast_df.loc[i, 'EBITDA'] = metric_value
                                 print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
@@ -691,7 +682,7 @@ def predict(request: GuidedInputRequest):
                                 forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = metric_value
                                 print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
                             else:
-                                print(f"  ⚠️ Q{quarter_num} {metric_name}: unknown metric, skipping")
+                                print(f"  ⚠️ Q{quarter_num} {metric_name}: unsupported metric '{metric_name}', skipping")
                 
                 # Apply global overrides if available (affects all quarters)
                 if 'global' in request.advanced_metrics:
@@ -705,7 +696,13 @@ def predict(request: GuidedInputRequest):
                             # Override Magic Number calculation for all quarters
                             for j in range(len(forecast_df)):
                                 if forecast_df.loc[j, 'Sales & Marketing'] > 0:
-                                    forecast_df.loc[j, 'Magic_Number'] = forecast_df.loc[j, 'Net New ARR'] / metric_value
+                                    # Magic Number = Net New ARR / Sales & Marketing
+                                    # If user wants Magic Number = 0.8, then Sales & Marketing = Net New ARR / 0.8
+                                    target_magic_number = metric_value
+                                    if target_magic_number > 0:
+                                        forecast_df.loc[j, 'Sales & Marketing'] = forecast_df.loc[j, 'Net New ARR'] / target_magic_number
+                                        # Recalculate Magic Number to ensure consistency
+                                        forecast_df.loc[j, 'Magic_Number'] = target_magic_number
                             print(f"  🔧 Applied global Magic Number override: {metric_value}")
                         elif metric_name == 'burn_multiple_override':
                             # Override Burn Multiple calculation for all quarters
@@ -726,6 +723,10 @@ def predict(request: GuidedInputRequest):
         print(f"🔍 Guided forecast DataFrame shape: {forecast_df.shape}")
         print(f"🔍 Guided forecast DataFrame columns: {list(forecast_df.columns)}")
         print(f"🔍 First row sample: {forecast_df.iloc[0].to_dict()}")
+        
+        # Clean DataFrame to prevent JSON serialization issues
+        forecast_df = forecast_df.replace([np.inf, -np.inf], np.nan)
+        forecast_df = forecast_df.fillna(0)
         
         # Try to make prediction with trained model
         try:
@@ -757,303 +758,29 @@ def predict(request: GuidedInputRequest):
         
         # Generate insights based on latest quarter
         latest_q4 = forecast_df.iloc[-1]
-        insights = {
-            'size_category': 'Early Stage' if latest_q4['cARR'] < 1e6 else 'Growth Stage' if latest_q4['cARR'] < 10e6 else 'Scale Stage' if latest_q4['cARR'] < 100e6 else 'Enterprise',
-            'growth_insight': f"Q4 Growth rate: {latest_q4['ARR YoY Growth (in %)']:.1f}%",
-            'efficiency_insight': f"Q4 Magic Number: {latest_q4['Magic_Number']:.2f}",
-            'quarterly_trend': f"ARR growth: Q1: {forecast_df.iloc[0]['cARR']:,.0f} → Q4: {latest_q4['cARR']:,.0f}",
-            'headcount_trend': f"Team growth: Q1: {forecast_df.iloc[0]['Headcount (HC)']} → Q4: {latest_q4['Headcount (HC)']}"
-        }
         
-        return {
-            "company_name": request.company_name,
-            "input_metrics": forecast_df.to_dict('records'),
-            "forecast_results": forecast_results.to_dict('records') if hasattr(forecast_results, 'to_dict') else forecast_results,
-            "insights": insights,
-            "model_used": model_used,
-            "forecast_success": forecast_success,
-            "message": "Guided forecast completed successfully using 4 quarters of data!"
-        }
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500, 
-            content={"error": f"Guided forecast failed: {str(e)}"}
-        )
-
-@app.post("/advanced_forecast")
-def advanced_forecast(request: GuidedInputRequest):
-    """Advanced forecasting endpoint that handles comprehensive financial data including advanced metrics."""
-    try:
-        from guided_input_system import GuidedInputSystem
-        from enhanced_prediction import EnhancedFinancialPredictor
-        import pandas as pd
-        
-        # Initialize guided system
-        guided_system = GuidedInputSystem()
-        guided_system.initialize_from_training_data()
-        
-        # Create DataFrame with 4 quarters of data (same as guided_forecast)
-        quarters_data = []
-        
-        # Q1 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q1',
-            'Quarter Num': 1,
-            'cARR': request.q1_arr,
-            'Net New ARR': request.q1_net_new_arr,
-            'QRR': request.q1_qrr,
-            'Headcount (HC)': request.q1_headcount,
-            'Gross Margin (in %)': request.q1_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q1_net_profit_loss
-        })
-        
-        # Q2 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q2',
-            'Quarter Num': 2,
-            'cARR': request.q2_arr,
-            'Net New ARR': request.q2_net_new_arr,
-            'QRR': request.q2_qrr,
-            'Headcount (HC)': request.q2_headcount,
-            'Gross Margin (in %)': request.q2_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q2_net_profit_loss
-        })
-        
-        # Q3 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q3',
-            'Quarter Num': 3,
-            'cARR': request.q3_arr,
-            'Net New ARR': request.q3_net_new_arr,
-            'QRR': request.q3_qrr,
-            'Headcount (HC)': request.q3_headcount,
-            'Gross Margin (in %)': request.q3_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q3_net_profit_loss
-        })
-        
-        # Q4 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q4',
-            'Quarter Num': 4,
-            'cARR': request.q4_arr,
-            'Net New ARR': request.q4_net_new_arr,
-            'QRR': request.q4_qrr,
-            'Headcount (HC)': request.q4_headcount,
-            'Gross Margin (in %)': request.q4_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q4_net_profit_loss
-        })
-        
-        # Create DataFrame
-        forecast_df = pd.DataFrame(quarters_data)
-        
-        # Apply all the same calculations as guided_forecast
-        # Calculate additional required fields for LightGBM model (same as CSV processing)
-        for i, row in forecast_df.iterrows():
-            # Calculate ARR YoY Growth
-            if i == 0:  # Q1 - use Q1 data as baseline
-                forecast_df.loc[i, 'ARR YoY Growth (in %)'] = 0
-            else:
-                prev_arr = forecast_df.loc[i-1, 'cARR']
-                if prev_arr > 0:
-                    forecast_df.loc[i, 'ARR YoY Growth (in %)'] = ((row['cARR'] - prev_arr) / prev_arr) * 100
-                else:
-                    forecast_df.loc[i, 'ARR YoY Growth (in %)'] = 0
-            
-            # Calculate Revenue YoY Growth (same as ARR for SaaS)
-            forecast_df.loc[i, 'Revenue YoY Growth (in %)'] = forecast_df.loc[i, 'ARR YoY Growth (in %)']
-            
-            # Calculate Magic Number (Sales Efficiency)
-            if row['Net New ARR'] > 0:
-                # Estimate Sales & Marketing based on typical Magic Number
-                typical_magic_number = 0.7
-                estimated_sales_marketing = row['Net New ARR'] / typical_magic_number
-                forecast_df.loc[i, 'Sales & Marketing'] = min(estimated_sales_marketing, row['cARR'] * 0.8)
-            else:
-                forecast_df.loc[i, 'Sales & Marketing'] = 0
-            
-            # Calculate EBITDA (simplified)
-            forecast_df.loc[i, 'EBITDA'] = row['cARR'] * (row['Gross Margin (in %)'] / 100) - row['Sales & Marketing']
-            
-            # Calculate Cash Burn (simplified)
-            forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] = -forecast_df.loc[i, 'EBITDA']
-            
-            # Calculate LTM Rule of 40% (ARR)
-            forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = row['ARR YoY Growth (in %)'] + (row['Gross Margin (in %)'] - 50)
-            
-            # Calculate Magic Number
-            if forecast_df.loc[i, 'Sales & Marketing'] > 0:
-                forecast_df.loc[i, 'Magic_Number'] = row['Net New ARR'] / forecast_df.loc[i, 'Sales & Marketing']
-            else:
-                forecast_df.loc[i, 'Magic_Number'] = 0
-            
-            # Calculate Burn Multiple
-            if forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] != 0:
-                forecast_df.loc[i, 'Burn_Multiple'] = abs(forecast_df.loc[i, 'Net New ARR'] / forecast_df.loc[i, 'Cash Burn (OCF & ICF)'])
-            else:
-                forecast_df.loc[i, 'Burn_Multiple'] = 0
-            
-            # Calculate ARR per Headcount
-            if row['Headcount (HC)'] > 0:
-                forecast_df.loc[i, 'ARR_per_Headcount'] = row['cARR'] / row['Headcount (HC)']
-            else:
-                forecast_df.loc[i, 'ARR_per_Headcount'] = 0
-        
-        # Add missing columns required by LightGBM model (same as CSV processing)
-        if 'Sales & Marketing' not in forecast_df.columns:
-            # Estimate Sales & Marketing based on Net New ARR and typical Magic Number
-            typical_magic_number = 0.7
-            forecast_df['Sales & Marketing'] = forecast_df['Net New ARR'] / typical_magic_number
-            # Cap at reasonable levels (not more than 80% of ARR)
-            forecast_df['Sales & Marketing'] = forecast_df['Sales & Marketing'].clip(upper=forecast_df['cARR'] * 0.8)
-        
-        # Ensure all required fields are present (same as CSV processing)
-        required_fields = [
-            "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
-            "EBITDA", "Cash Burn (OCF & ICF)", "LTM Rule of 40% (ARR)", "Quarter Num"
-        ]
-        
-        for field in required_fields:
-            if field not in forecast_df.columns:
-                if field == 'EBITDA':
-                    forecast_df[field] = forecast_df['cARR'] * 0.2  # Estimate 20% of ARR
-                elif field == 'Cash Burn (OCF & ICF)':
-                    forecast_df[field] = forecast_df['cARR'] * 0.3  # Estimate -30% of ARR
-                elif field == 'LTM Rule of 40% (ARR)':
-                    forecast_df[field] = forecast_df['ARR YoY Growth (in %)'] + forecast_df['Gross Margin (in %)'] * 0.2
-                elif field == 'Quarter Num':
-                    forecast_df[field] = range(1, len(forecast_df) + 1)
-                else:
-                    forecast_df[field] = 0
-        
-        # Add any additional fields that might be expected by the LightGBM model
-        if 'Net_Profit_Loss_Margin_Percent' not in forecast_df.columns:
-            forecast_df['Net_Profit_Loss_Margin_Percent'] = forecast_df['Net Profit/Loss Margin (in %)']
-        
-        # Enhanced advanced mode handling - override estimated metrics for better accuracy
-        if request.advanced_mode and request.advanced_metrics:
-            print(f"🔧 Advanced mode enabled - overriding estimated metrics for better accuracy")
-            
-            # Apply advanced metrics to each quarter
-            for i, row in forecast_df.iterrows():
-                quarter_num = i + 1
-                quarter_key = f"q{quarter_num}"
-                
-                # Apply quarter-specific advanced metrics if available
-                if quarter_key in request.advanced_metrics:
-                    quarter_metrics = request.advanced_metrics[quarter_key]
-                    
-                    # Override only the estimated/inferred metrics that the system calculates
-                    for metric_name, metric_value in quarter_metrics.items():
-                        if metric_name == 'sales_marketing':
-                            # Override the estimated Sales & Marketing
-                            forecast_df.loc[i, 'Sales & Marketing'] = metric_value
-                            print(f"  🔧 Overrode Sales & Marketing: {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'cash_burn':
-                            # Override the estimated Cash Burn
-                            forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] = metric_value
-                            print(f"  🔧 Overrode Cash Burn: {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'ebitda':
-                            # Override the estimated EBITDA
-                            forecast_df.loc[i, 'EBITDA'] = metric_value
-                            print(f"  🔧 Overrode EBITDA: {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'customers_eop':
-                            # Override the estimated Customers (EoP)
-                            forecast_df.loc[i, 'Customers (EoP)'] = metric_value
-                            print(f"  🔧 Overrode Customers (EoP): {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'expansion_upsell':
-                            # Override the estimated Expansion & Upsell
-                            forecast_df.loc[i, 'Expansion & Upsell'] = metric_value
-                            print(f"  🔧 Overrode Expansion & Upsell: {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'churn_reduction':
-                            # Override the estimated Churn & Reduction
-                            forecast_df.loc[i, 'Churn & Reduction'] = metric_value
-                            print(f"  🔧 Overrode Churn & Reduction: {metric_value} for Q{quarter_num}")
-                        elif metric_name == 'gross_margin':
-                            # Override the estimated Gross Margin
-                            forecast_df.loc[i, 'Gross Margin (in %)'] = metric_value
-                            print(f"  🔧 Overrode Gross Margin: {metric_value}% for Q{quarter_num}")
-                
-                # Apply global overrides if available (affects all quarters)
-                if 'global' in request.advanced_metrics:
-                    global_metrics = request.advanced_metrics['global']
-                    for metric_name, metric_value in global_metrics.items():
-                        if metric_name == 'magic_number_override':
-                            # Override Magic Number calculation for all quarters
-                            for j in range(len(forecast_df)):
-                                if forecast_df.loc[j, 'Sales & Marketing'] > 0:
-                                    forecast_df.loc[j, 'Magic_Number'] = forecast_df.loc[j, 'Net New ARR'] / metric_value
-                            print(f"  🔧 Applied global Magic Number override: {metric_value}")
-                        elif metric_name == 'burn_multiple_override':
-                            # Override Burn Multiple calculation for all quarters
-                            for j in range(len(forecast_df)):
-                                if forecast_df.loc[j, 'Cash Burn (OCF & ICF)'] != 0:
-                                    forecast_df.loc[j, 'Burn_Multiple'] = abs(forecast_df.loc[j, 'Net New ARR'] / metric_value)
-                            print(f"  🔧 Applied global Burn Multiple override: {metric_value}")
-                        elif metric_name == 'ltm_rule_40_override':
-                            # Override LTM Rule of 40% calculation for all quarters
-                            for j in range(len(forecast_df)):
-                                forecast_df.loc[j, 'LTM Rule of 40% (ARR)'] = metric_value
-                            print(f"  🔧 Applied global LTM Rule of 40% override: {metric_value}")
-        
-        # Ensure the DataFrame has the same structure as CSV processing
-        print(f"🔍 Advanced forecast DataFrame shape: {forecast_df.shape}")
-        print(f"🔍 Advanced forecast DataFrame columns: {list(forecast_df.columns)}")
-        print(f"🔍 First row sample: {forecast_df.iloc[0].to_dict()}")
-        
-        # Try to make prediction with trained model
+        # Safe insight generation with error handling
         try:
-            from financial_prediction import load_trained_model, predict_future_arr
-            trained_model = load_trained_model('lightgbm_financial_model.pkl')
-            if trained_model:
-                forecast_results = predict_future_arr(trained_model, forecast_df)
-                model_used = "LightGBM Model (Advanced)"
-                forecast_success = True
-            else:
-                raise Exception("No trained model available")
+            size_category = 'Early Stage' if latest_q4['cARR'] < 1e6 else 'Growth Stage' if latest_q4['cARR'] < 10e6 else 'Scale Stage' if latest_q4['cARR'] < 100e6 else 'Enterprise'
+            growth_insight = f"Q4 Growth rate: {latest_q4['ARR YoY Growth (in %)']:.1f}%"
+            efficiency_insight = f"Q4 Magic Number: {latest_q4['Magic_Number']:.2f}"
+            quarterly_trend = f"ARR growth: Q1: {forecast_df.iloc[0]['cARR']:,.0f} → Q4: {latest_q4['cARR']:,.0f}"
+            headcount_trend = f"Team growth: Q1: {forecast_df.iloc[0]['Headcount (HC)']} → Q4: {latest_q4['Headcount (HC)']}"
         except Exception as e:
-            # Use fallback calculation
-            predictor = EnhancedFinancialPredictor()
-            # Use all 4 quarters for fallback calculation instead of just the latest
-            print(f"⚠️ LightGBM failed, using fallback calculation with 4 quarters of data")
-            try:
-                # Try to use all 4 quarters for better fallback prediction
-                forecast_results = predictor._generate_fallback_forecast(forecast_df.to_dict('records'))
-                model_used = "Fallback Calculation (4 Quarters, Advanced)"
-                forecast_success = False
-            except Exception as fallback_error:
-                # If that fails, fall back to single quarter
-                print(f"⚠️ Multi-quarter fallback failed, using single quarter: {fallback_error}")
-                latest_quarter = forecast_df.iloc[-1].to_dict()
-                forecast_results = predictor._generate_fallback_forecast(latest_quarter)
-                model_used = "Fallback Calculation (Single Quarter, Advanced)"
-                forecast_success = False
+            print(f"⚠️ Error generating insights: {e}")
+            size_category = 'Unknown'
+            growth_insight = 'Growth rate: N/A'
+            efficiency_insight = 'Magic Number: N/A'
+            quarterly_trend = 'ARR growth: N/A'
+            headcount_trend = 'Team growth: N/A'
         
-        # Generate enhanced insights based on all quarters and advanced metrics
-        latest_q4 = forecast_df.iloc[-1]
         insights = {
-            'size_category': 'Early Stage' if latest_q4['cARR'] < 1e6 else 'Growth Stage' if latest_q4['cARR'] < 10e6 else 'Scale Stage' if latest_q4['cARR'] < 100e6 else 'Enterprise',
-            'growth_insight': f"Q4 Growth rate: {latest_q4['ARR YoY Growth (in %)']:.1f}%",
-            'efficiency_insight': f"Q4 Magic Number: {latest_q4['Magic_Number']:.2f}",
-            'quarterly_trend': f"ARR growth: Q1: {forecast_df.iloc[0]['cARR']:,.0f} → Q4: {latest_q4['cARR']:,.0f}",
-            'headcount_trend': f"Team growth: Q1: {forecast_df.iloc[0]['Headcount (HC)']} → Q4: {latest_q4['Headcount (HC)']}",
-            'advanced_metrics_used': request.advanced_mode and request.advanced_metrics is not None,
-            'total_advanced_metrics': len(request.advanced_metrics) if request.advanced_mode and request.advanced_metrics else 0
+            'size_category': size_category,
+            'growth_insight': growth_insight,
+            'efficiency_insight': efficiency_insight,
+            'quarterly_trend': quarterly_trend,
+            'headcount_trend': headcount_trend
         }
-        
-        # Add advanced insights if available
-        if request.advanced_mode and request.advanced_metrics:
-            insights['advanced_mode_info'] = f"Advanced mode overrode {request.advanced_metrics_count} estimated metrics for better accuracy"
-            if 'Customers (EoP)' in forecast_df.columns:
-                insights['customer_growth'] = f"Customer growth: Q1: {forecast_df.iloc[0].get('Customers (EoP)', 0):,.0f} → Q4: {latest_q4.get('Customers (EoP)', 0):,.0f}"
-            if 'Sales & Marketing' in forecast_df.columns:
-                insights['sales_efficiency'] = f"Sales & Marketing efficiency: Q4 Magic Number: {latest_q4.get('Magic_Number', 0):.2f}"
-            if 'Cash Burn (OCF & ICF)' in forecast_df.columns:
-                insights['cash_burn_insight'] = f"Cash burn pattern: Q4 Burn Multiple: {latest_q4.get('Burn_Multiple', 0):.2f}"
         
         return {
             "company_name": request.company_name,
@@ -1064,14 +791,15 @@ def advanced_forecast(request: GuidedInputRequest):
             "forecast_success": forecast_success,
             "advanced_mode_enabled": request.advanced_mode,
             "advanced_metrics_count": len(request.advanced_metrics) if request.advanced_metrics else 0,
-            "message": "Advanced forecast completed successfully using 4 quarters of data with comprehensive metrics!"
+            "message": "Guided forecast completed successfully using 4 quarters of data!"
         }
         
     except Exception as e:
         return JSONResponse(
             status_code=500, 
-            content={"error": f"Advanced forecast failed: {str(e)}"}
+            content={"error": f"Guided forecast failed: {str(e)}"}
         )
+
 
 @app.get("/")
 def root():
