@@ -250,236 +250,276 @@ def predict_raw(data: FeatureInput):
 
 @app.post("/predict_csv")
 def predict_csv(file: UploadFile = File(...), model: str = Form('lightgbm')):
-    """Predict ARR growth from a CSV file upload using LightGBM model."""
+    """Predict ARR growth from a CSV file upload using the same logic as guided_forecast."""
     try:
         df = pd.read_csv(file.file)
-        if len(df) < 4:
-            return JSONResponse(status_code=400, content={"error": "CSV must have at least 4 rows (quarters)."})
+        if len(df) < 1:
+            return JSONResponse(status_code=400, content={"error": "CSV must have at least 1 row."})
         
-        # Handle your CSV format (ARR_End_of_Quarter, Quarterly_Net_New_ARR, etc.)
-        # Convert to the format expected by the LightGBM model
-        df_processed = df.copy()
+        # Get the most recent row (last row)
+        latest_row = df.iloc[-1]
         
-        # Rename columns to match expected format
-        column_mapping = {
-            'ARR_End_of_Quarter': 'cARR',
-            'Quarterly_Net_New_ARR': 'Net New ARR',
-            'QRR_Quarterly_Recurring_Revenue': 'QRR',
-            'Headcount': 'Headcount (HC)',
-            'Gross_Margin_Percent': 'Gross Margin (in %)',
-            'Net_Profit_Loss_Margin_Percent': 'Net_Profit_Loss_Margin_Percent'
+        # Extract current ARR and Net New ARR from the CSV
+        current_arr = None
+        net_new_arr = None
+        
+        # Try different possible column names
+        if 'ARR_End_of_Quarter' in latest_row:
+            current_arr = latest_row['ARR_End_of_Quarter']
+        elif 'cARR' in latest_row:
+            current_arr = latest_row['cARR']
+        elif 'ARR' in latest_row:
+            current_arr = latest_row['ARR']
+        
+        if 'Quarterly_Net_New_ARR' in latest_row:
+            net_new_arr = latest_row['Quarterly_Net_New_ARR']
+        elif 'Net New ARR' in latest_row:
+            net_new_arr = latest_row['Net New ARR']
+        elif 'Net_New_ARR' in latest_row:
+            net_new_arr = latest_row['Net_New_ARR']
+        
+        if current_arr is None or net_new_arr is None:
+            return JSONResponse(status_code=400, content={
+                "error": "CSV must contain ARR_End_of_Quarter (or cARR/ARR) and Quarterly_Net_New_ARR (or Net New ARR/Net_New_ARR) columns"
+            })
+        
+        # Calculate growth rate
+        growth_rate = (net_new_arr / current_arr) * 100 if current_arr > 0 else 0
+        
+        # Use the same logic as guided_forecast
+        from financial_prediction import load_trained_model, predict_future_arr
+        
+        # Initialize guided system
+        guided_system = EnhancedGuidedInputSystem()
+        guided_system.initialize_from_training_data()
+        
+        # Build primary inputs (exactly as in guided_forecast)
+        primary_inputs = {
+            'cARR': current_arr,
+            'Net New ARR': net_new_arr,
+            'ARR YoY Growth (in %)': growth_rate,
+            'Quarter Num': 1
         }
         
-        for old_col, new_col in column_mapping.items():
-            if old_col in df_processed.columns:
-                df_processed[new_col] = df_processed[old_col]
+        # Infer secondary metrics using the guided system
+        inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
         
-        # Add required fields that might be missing
-        if 'ARR YoY Growth (in %)' not in df_processed.columns:
-            df_processed['ARR YoY Growth (in %)'] = df_processed['cARR'].pct_change() * 100
+        # Add company name and quarter
+        inferred_metrics['id_company'] = 'CSV Upload Company'
+        inferred_metrics['Financial Quarter'] = 'FY24 Q1'
         
-        if 'Revenue YoY Growth (in %)' not in df_processed.columns:
-            df_processed['Revenue YoY Growth (in %)'] = df_processed['QRR'].pct_change() * 100
+        # Create forecast-ready DataFrame
+        forecast_df = guided_system.create_forecast_input(inferred_metrics)
         
-        # Fill missing required fields with defaults
-        required_fields = [
-            "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
-            "EBITDA", "Cash Burn (OCF & ICF)", "LTM Rule of 40% (ARR)", "Quarter Num"
-        ]
-        
-        for field in required_fields:
-            if field not in df_processed.columns:
-                if field == 'EBITDA':
-                    df_processed[field] = df_processed['cARR'] * 0.2  # Estimate 20% of ARR
-                elif field == 'Cash Burn (OCF & ICF)':
-                    df_processed[field] = -df_processed['cARR'] * 0.3  # Estimate -30% of ARR
-                elif field == 'LTM Rule of 40% (ARR)':
-                    df_processed[field] = df_processed['ARR YoY Growth (in %)'] + df_processed['Gross Margin (in %)'] * 0.2
-                elif field == 'Quarter Num':
-                    df_processed[field] = range(1, len(df_processed) + 1)
-                else:
-                    df_processed[field] = 0
-        
-        # Add missing columns required by LightGBM model
-        if 'Sales & Marketing' not in df_processed.columns:
-            # Estimate Sales & Marketing based on Net New ARR and typical Magic Number
-            # Magic Number = Net New ARR / Sales & Marketing
-            # Typical Magic Number for SaaS companies: 0.5-1.0
-            typical_magic_number = 0.7
-            df_processed['Sales & Marketing'] = df_processed['Net New ARR'] / typical_magic_number
-            # Cap at reasonable levels (not more than 80% of ARR)
-            df_processed['Sales & Marketing'] = df_processed['Sales & Marketing'].clip(upper=df_processed['cARR'] * 0.8)
-        
-        # Get last 4 quarters
-        df_last4 = df_processed.tail(4)
-        
-        # Extract features in the order expected by the model
-        features = []
-        for _, row in df_last4.iterrows():
-            for field in REQUIRED_FIELDS:
-                features.append(float(row[field]))
-        
-        if len(features) != 28:
-            return JSONResponse(status_code=400, content={"error": f"Expected 28 features, got {len(features)}"})
-        
-        # Use LightGBM model for prediction
+        # Try to make prediction with trained model
         try:
-            from financial_prediction import load_trained_model, predict_future_arr
-            
-            # Load the LightGBM model
             trained_model = load_trained_model('lightgbm_financial_model.pkl')
             if trained_model:
-                # Create a DataFrame with the processed data
-                forecast_df = df_processed.copy()
-                forecast_df['id_company'] = 'Uploaded Company'
-                forecast_df['Financial Quarter'] = [f'FY24 Q{i}' for i in range(1, len(forecast_df) + 1)]
-                
-                # Make prediction using the LightGBM model
-                print(f"🔍 Attempting LightGBM prediction with {len(forecast_df)} rows")
-                print(f"🔍 Forecast DataFrame columns: {list(forecast_df.columns)}")
-                print(f"🔍 First row sample: {forecast_df.iloc[0].to_dict()}")
-                
-                try:
-                    forecast_results = predict_future_arr(trained_model, forecast_df)
-                    print(f"✅ LightGBM prediction successful: {type(forecast_results)}")
-                    model_used = 'LightGBM'
-                except Exception as e:
-                    print(f"❌ LightGBM prediction failed: {str(e)}")
-                    raise e
-                
-                return {
-                    "model": model_used,
-                    "prediction": forecast_results.to_dict('records') if hasattr(forecast_results, 'to_dict') else forecast_results,
-                    "message": "LightGBM forecast completed successfully!"
-                }
+                # Add uncertainty quantification
+                from simple_uncertainty_prediction import predict_with_simple_uncertainty
+                forecast_results = predict_with_simple_uncertainty(forecast_df, uncertainty_factor=0.1)
+                model_used = "LightGBM Model with Uncertainty (±10%)"
+                forecast_success = True
             else:
-                raise Exception("LightGBM model not available")
-                
+                raise Exception("No trained model available")
         except Exception as e:
-                        # Fallback to simple calculation if LightGBM fails
-            # Simple growth projection as fallback
-            last_arr = df_processed['cARR'].iloc[-1]
-            growth_rate = df_processed['ARR YoY Growth (in %)'].iloc[-1] / 100
-            
-            # Project next 4 quarters with slight deceleration
-            future_arr = []
-            for i in range(1, 5):
-                deceleration = 0.95 ** i  # 5% deceleration per quarter
-                projected_growth = growth_rate * deceleration
-                future_arr.append(last_arr * (1 + projected_growth))
-            
-            return {
-                "model": "Fallback Calculation",
-                "prediction": [{"quarter": f"Q{i+1}", "projected_arr": arr} for i, arr in enumerate(future_arr)],
-                "message": "LightGBM failed, used fallback calculation"
-            }
+            # Use fallback calculation
+            from enhanced_prediction import EnhancedFinancialPredictor
+            predictor = EnhancedFinancialPredictor()
+            forecast_results = predictor._generate_fallback_forecast(inferred_metrics)
+            model_used = "Fallback Calculation"
+            forecast_success = False
+        
+        # Generate insights
+        insights = {
+            'size_category': 'Early Stage' if current_arr < 1e6 else 'Growth Stage' if current_arr < 10e6 else 'Scale Stage' if current_arr < 100e6 else 'Enterprise',
+            'growth_insight': f"Growth rate: {growth_rate:.1f}%",
+            'efficiency_insight': f"Magic Number: {inferred_metrics.get('Magic_Number', 0):.2f}"
+        }
+        
+        return {
+            "company_name": "CSV Upload Company",
+            "input_metrics": inferred_metrics,
+            "forecast_results": forecast_results.to_dict('records') if hasattr(forecast_results, 'to_dict') else forecast_results,
+            "insights": insights,
+            "model_used": model_used,
+            "forecast_success": forecast_success,
+            "message": "CSV forecast completed successfully using the same logic as guided forecast!"
+        }
             
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": f"CSV forecast failed: {str(e)}"})
 
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
-    """Conversational endpoint for GPT agent with prediction and project info."""
+    """Enhanced conversational endpoint for financial forecasting and analysis."""
     message = request.message.lower()
     name = request.name
     preferred_model = request.preferred_model
     history = request.history or []
 
-    feature_numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", request.message)
-    is_data_provided = len(feature_numbers) == 28 or "csv" in message
-
-    if preferred_model and is_data_provided:
-        message = f"Use the {preferred_model} model. {request.message}"
-
-    if is_data_provided:
+    # Check for financial data in the message
+    arr_pattern = r'(\d+(?:\.\d+)?)\s*(?:million|m|k|k)?\s*(?:arr|annual recurring revenue|revenue)'
+    net_new_pattern = r'(\d+(?:\.\d+)?)\s*(?:million|m|k|k)?\s*(?:net new|new arr|quarterly)'
+    
+    # Extract ARR and Net New ARR from natural language
+    arr_match = re.search(arr_pattern, request.message, re.IGNORECASE)
+    net_new_match = re.search(net_new_pattern, request.message, re.IGNORECASE)
+    
+    # Check for specific forecasting requests
+    forecast_keywords = ['forecast', 'predict', 'projection', 'growth', 'future', 'next quarter', '2025']
+    is_forecast_request = any(keyword in message for keyword in forecast_keywords)
+    
+    # Check for feature questions
+    feature_keywords = ['magic number', 'burn multiple', 'rule of 40', 'gross margin', 'headcount', 'customers', 'churn', 'expansion']
+    is_feature_question = any(keyword in message for keyword in feature_keywords)
+    
+    # Check for CSV mentions
+    is_csv_request = 'csv' in message or 'upload' in message or 'file' in message
+    
+    # If user provides financial data and wants a forecast
+    if (arr_match or net_new_match) and is_forecast_request:
         try:
-            # Extract numbers from the message
-            numbers = re.findall(r"[-+]?[0-9]*\.?[0-9]+", request.message)
+            # Extract financial data
+            current_arr = None
+            net_new_arr = None
             
-            if len(numbers) >= 28:
-                # User provided 28 features directly - use LightGBM
-                print(f"🔍 Chat detected {len(numbers)} features, using LightGBM model")
+            if arr_match:
+                arr_value = float(arr_match.group(1))
+                # Handle units (million, k, etc.)
+                if 'million' in request.message.lower() or 'm' in request.message.lower():
+                    current_arr = arr_value * 1000000
+                elif 'k' in request.message.lower():
+                    current_arr = arr_value * 1000
+                else:
+                    current_arr = arr_value
+            
+            if net_new_match:
+                net_new_value = float(net_new_match.group(1))
+                # Handle units
+                if 'million' in request.message.lower() or 'm' in request.message.lower():
+                    net_new_arr = net_new_value * 1000000
+                elif 'k' in request.message.lower():
+                    net_new_arr = net_new_value * 1000
+                else:
+                    net_new_arr = net_new_value
+            
+            # If we have both values, run the forecast
+            if current_arr and net_new_arr:
+                # Use the same logic as guided_forecast
+                from financial_prediction import load_trained_model, predict_future_arr
                 
+                # Initialize guided system
+                guided_system = EnhancedGuidedInputSystem()
+                guided_system.initialize_from_training_data()
+                
+                # Build primary inputs
+                growth_rate = (net_new_arr / current_arr) * 100 if current_arr > 0 else 0
+                primary_inputs = {
+                    'cARR': current_arr,
+                    'Net New ARR': net_new_arr,
+                    'ARR YoY Growth (in %)': growth_rate,
+                    'Quarter Num': 1
+                }
+                
+                # Infer secondary metrics
+                inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
+                inferred_metrics['id_company'] = 'Chat User'
+                inferred_metrics['Financial Quarter'] = 'FY24 Q1'
+                
+                # Create forecast-ready DataFrame
+                forecast_df = guided_system.create_forecast_input(inferred_metrics)
+                            
+                # Make prediction with uncertainty
                 try:
-                    from financial_prediction import load_trained_model, predict_future_arr
-                    
-                    # Load LightGBM model
                     trained_model = load_trained_model('lightgbm_financial_model.pkl')
                     if trained_model:
-                        # Create a sample DataFrame with the features
-                        # We need to create a proper DataFrame structure for the LightGBM model
-                        # This is a simplified approach - in practice, you might want to map these to proper columns
-                        
-                        # For now, let's use the guided forecast approach with extracted data
-                        guided_system = EnhancedGuidedInputSystem()
-                        guided_system.initialize_from_training_data()
-                        
-                        # Try to extract meaningful data from the 28 features
-                        # Assuming the features are in the order: [cARR, Net New ARR, QRR, Headcount, Gross Margin, Net Profit Loss, Quarter Num] x 4 quarters
-                        if len(numbers) >= 28:
-                            # Extract last quarter data (most recent)
-                            last_quarter_features = numbers[-7:]  # Last 7 features
-                            
-                            # Create input for guided forecast
-                            primary_inputs = {
-                                'cARR': float(last_quarter_features[0]) if len(last_quarter_features) > 0 else 1000000,
-                                'Net New ARR': float(last_quarter_features[1]) if len(last_quarter_features) > 1 else 200000,
-                                'ARR YoY Growth (in %)': 15.0,  # Default if not calculable
-                                'Quarter Num': 4
-                            }
-                            
-                            # Infer secondary metrics
-                            inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
-                            
-                            # Add required fields for the DataFrame
-                            inferred_metrics['id_company'] = 'Chat User'
-                            inferred_metrics['Financial Quarter'] = 'FY24 Q4'
-                            
-                            # Create forecast-ready DataFrame
-                            forecast_df = guided_system.create_forecast_input(inferred_metrics)
-                            
-                            # Make prediction using LightGBM
-                            forecast_results = predict_future_arr(trained_model, forecast_df)
-                            
-                            # Generate analysis
-                            analysis_prompt = (
-                                "Here are the results of the LightGBM financial forecast:\n"
-                                f"Predicted ARR YoY growth for the next 4 quarters: {forecast_results['Predicted YoY Growth (%)'].tolist()}\n"
-                                f"Predicted Absolute ARR values: {forecast_results['Predicted Absolute cARR (€)'].tolist()}\n"
-                                "Please provide a clear, human-friendly analysis of these results, including any risks or opportunities you see."
-                            )
-                            analysis = llm.invoke(analysis_prompt).content
-                            
-                            return {
-                                "response": analysis,
-                                "data": {
-                                    "model": "LightGBM",
-                                    "forecast_results": forecast_results.to_dict('records'),
-                                    "message": "LightGBM forecast completed successfully via chat!"
-                                }
-                            }
-                        else:
-                            return {"response": "I detected some numbers but need exactly 28 features for a proper forecast. Please provide complete financial data for 4 quarters."}
+                        from simple_uncertainty_prediction import predict_with_simple_uncertainty
+                        forecast_results = predict_with_simple_uncertainty(forecast_df, uncertainty_factor=0.1)
+                        model_used = "LightGBM Model with Uncertainty (±10%)"
                     else:
-                        return {"response": "Sorry, the LightGBM model is not available right now."}
-                        
+                        raise Exception("Model not available")
                 except Exception as e:
-                    print(f"❌ LightGBM prediction failed in chat: {str(e)}")
-                    return {"response": f"Sorry, there was an error running the LightGBM forecast: {str(e)}"}
-                    
-            elif "csv" in message.lower():
-                # User mentioned CSV - guide them to use the CSV endpoint
+                    # Fallback calculation
+                    from enhanced_prediction import EnhancedFinancialPredictor
+                    predictor = EnhancedFinancialPredictor()
+                    forecast_results = predictor._generate_fallback_forecast(inferred_metrics)
+                    model_used = "Fallback Calculation"
+                
+                # Generate conversational analysis
+                analysis_prompt = f"""
+                Based on the financial data provided:
+                - Current ARR: ${current_arr:,.0f}
+                - Net New ARR: ${net_new_arr:,.0f}
+                - Growth Rate: {growth_rate:.1f}%
+                
+                And the forecast results showing growth predictions for the next 4 quarters, provide a conversational, helpful analysis that includes:
+                1. What the numbers mean in simple terms
+                2. Key insights about the company's stage and performance
+                3. Potential risks or opportunities
+                4. Suggestions for improvement
+                5. How the uncertainty ranges affect the forecast
+                
+                Make it conversational and easy to understand for a business person.
+                """
+                
+                analysis = llm.invoke(analysis_prompt).content
+                
                 return {
-                    "response": "I can help you analyze CSV data! Please use the `/predict_csv` endpoint to upload your CSV file, or you can paste your financial data directly in the chat (I need 28 features for 4 quarters)."
+                    "response": analysis,
+                    "data": {
+                        "model": model_used,
+                        "forecast_results": forecast_results.to_dict('records') if hasattr(forecast_results, 'to_dict') else forecast_results,
+                        "input_metrics": inferred_metrics,
+                        "message": "Forecast completed successfully via chat!"
+                    }
                 }
             else:
-                # Not enough data - ask for more
+                # Ask for missing data
+                missing_data = []
+                if not current_arr:
+                    missing_data.append("current ARR")
+                if not net_new_arr:
+                    missing_data.append("net new ARR")
+                
                 return {
-                    "response": "I can help you with financial forecasting! Please provide your company's financial data. I need 28 features covering 4 quarters, or you can mention if you have a CSV file."
+                    "response": f"I'd be happy to help with your forecast! I need a bit more information. Could you please provide your {', '.join(missing_data)}? You can say something like 'My ARR is $2.1M and net new ARR is $320K'."
                 }
                 
         except Exception as e:
-            return {"response": f"Sorry, there was an error: {str(e)}"}
+            return {"response": f"I encountered an error while processing your request: {str(e)}. Could you try rephrasing your financial data?"}
+    
+    # If user asks about specific features
+    elif is_feature_question:
+        feature_explanations = {
+            'magic number': "The Magic Number measures sales efficiency: Net New ARR ÷ Sales & Marketing spend. Above 1.0 is excellent, 0.5-1.0 is good, below 0.5 needs improvement.",
+            'burn multiple': "Burn Multiple shows cash efficiency: Net Burn ÷ Net New ARR. Below 1.0 is great, 1.0-2.0 is acceptable, above 2.0 is concerning.",
+            'rule of 40': "Rule of 40 combines growth + profitability: Growth Rate + Profit Margin. Should be ≥40% for healthy SaaS companies.",
+            'gross margin': "Gross Margin = (Revenue - COGS) ÷ Revenue. SaaS companies typically aim for 70-90% gross margins.",
+            'headcount': "Employee count affects operational efficiency and burn rate. ARR per headcount is a key efficiency metric.",
+            'customers': "Customer count and expansion/churn rates are crucial for growth sustainability.",
+            'churn': "Customer churn rate should typically be <5% annually for healthy SaaS companies.",
+            'expansion': "Expansion revenue from existing customers is often more efficient than new customer acquisition."
+        }
+        
+        # Find which feature they're asking about
+        for keyword, explanation in feature_explanations.items():
+            if keyword in message:
+                return {
+                    "response": f"Great question about {keyword}! {explanation} Would you like me to help you calculate this metric for your company?"
+                }
+        
+        return {
+            "response": "I can help explain any SaaS metrics! Which specific metric would you like to know more about? Common ones include Magic Number, Burn Multiple, Rule of 40, Gross Margin, and more."
+        }
+    
+    # If user mentions CSV
+    elif is_csv_request:
+        return {
+            "response": "I can help you analyze CSV data! You have a few options:\n\n1. **Upload CSV**: Use the `/predict_csv` endpoint to upload your file\n2. **Chat with data**: Tell me your ARR and net new ARR directly in chat\n3. **Ask questions**: I can explain any SaaS metrics or help with analysis\n\nWhat would you prefer?"
+        }
+    
+    # General conversation
     else:
         greeting = f"Hi {name}!" if name else "Hi!"
         project_info = GPT_INFO.get("project_info", {})
@@ -489,42 +529,35 @@ def chat_endpoint(request: ChatRequest):
             f"Purpose: {project_info.get('purpose', '')}.",
             f"Contact: {project_info.get('contact', '')}."
         ])
-        # --- GPRH, VIX, and MOVE summary for system prompt ---
+        
+        # Get macro indicators
         gprh = gprh_trend_analysis()
         vix = vix_trend_analysis()
         move = move_trend_analysis()
-        gprh_summary = (
-            f"Current GPRH index (geopolitical risk, last 12 months): {gprh['last_12_months_gprh']}. "
-            f"Start: {gprh['start_value']}, End: {gprh['end_value']}, Change: {gprh['change']}. "
-            f"Traffic light: {gprh['traffic_light']}. {gprh['opinion']} "
-        )
-        vix_summary = (
-            f"Current VIX index (market volatility, last 12 months): {vix['last_12_months_vix']}. "
-            f"Start: {vix['start_value']}, End: {vix['end_value']}, Change: {vix['change']}. "
-            f"Traffic light: {vix['traffic_light']}. {vix['opinion']} "
-        )
-        move_summary = (
-            f"Current MOVE index (bond market volatility, last 12 months): {move['last_12_months_move']}. "
-            f"Start: {move['start_value']}, End: {move['end_value']}, Change: {move['change']}. "
-            f"Traffic light: {move['traffic_light']}. {move['opinion']} "
-        )
-        system_prompt = (
-            f"{greeting} I'm your venture prediction assistant powered by LightGBM machine learning. "
-            f"Project info: {project_info_str} "
-            f"{gprh_summary} {vix_summary} {move_summary} "
-            "If the user asks about macroeconomic, geopolitical risk, market volatility, or bond market volatility, use this information. "
-            "If the user asks about the project, answer using this info. "
-            "If the user seems interested in predictions, you may offer, but don't be pushy. "
-            "Otherwise, just chat naturally. "
-            "I can provide financial forecasts using our trained LightGBM model. If you want a prediction, just provide your financial data (I need 28 features for 4 quarters) or mention if you have a CSV file!"
-        )
-        conversation = [
-            {"role": "system", "content": system_prompt}
-        ]
+        
+        system_prompt = f"""
+        {greeting} I'm your AI financial forecasting assistant! I can help you with:
+        
+        📊 **Financial Forecasting**: Just tell me your ARR and net new ARR, and I'll predict your growth
+        📈 **SaaS Metrics Analysis**: Ask about Magic Number, Burn Multiple, Rule of 40, etc.
+        📋 **CSV Analysis**: Upload your financial data for detailed analysis
+        🌍 **Market Insights**: Get current macro indicators (GPRH: {gprh['traffic_light']}, VIX: {vix['traffic_light']}, MOVE: {move['traffic_light']})
+        
+        Project info: {project_info_str}
+        
+        How can I help you today? You can:
+        - Say "My ARR is $2.1M and net new ARR is $320K" for a forecast
+        - Ask "What is Magic Number?" for metric explanations
+        - Ask about market conditions or macro trends
+        - Or just chat naturally!
+        """
+        
+        conversation = [{"role": "system", "content": system_prompt}]
         for msg in history:
             if "role" in msg and "content" in msg:
                 conversation.append({"role": msg["role"], "content": msg["content"]})
         conversation.append({"role": "user", "content": request.message})
+        
         response = llm.invoke(conversation).content
         return {"response": response}
 
@@ -547,10 +580,11 @@ def guided_forecast(request: EnhancedGuidedInputRequest):
         guided_system.initialize_from_training_data()
         
         # Build primary inputs (exactly as in the working version)
+        growth_rate = (request.net_new_arr / request.current_arr * 100) if request.current_arr > 0 else 0
         primary_inputs = {
             'cARR': request.current_arr,
             'Net New ARR': request.net_new_arr,
-            'ARR YoY Growth (in %)': request.growth_rate or (request.net_new_arr / request.current_arr * 100) if request.current_arr > 0 else 0,
+            'ARR YoY Growth (in %)': growth_rate,
             'Quarter Num': 1
         }
         
