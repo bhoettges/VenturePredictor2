@@ -4,7 +4,7 @@ Simple uncertainty prediction using the existing trained model.
 """
 
 from financial_prediction import load_trained_model, predict_future_arr
-from guided_input_system import GuidedInputSystem
+from enhanced_guided_input import EnhancedGuidedInputSystem
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -109,7 +109,7 @@ def test_simple_uncertainty():
     print("=" * 60)
     
     # Create test data using guided input system
-    guided_system = GuidedInputSystem()
+    guided_system = EnhancedGuidedInputSystem()
     guided_system.initialize_from_training_data()
     
     # Build primary inputs (same as before)
