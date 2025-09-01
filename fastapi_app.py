@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import numpy as np
 import pandas as pd
 import joblib
@@ -16,6 +16,7 @@ import json
 from gpr_analysis import gprh_trend_analysis
 from vix_analysis import vix_trend_analysis
 from move_analysis import move_trend_analysis
+from enhanced_guided_input import EnhancedGuidedInputSystem
 
 load_dotenv()
 
@@ -31,14 +32,7 @@ app.add_middleware(
 )
 
 # --- Model Loading ---
-XGB_MODEL_PATH = 'xgboost_multi_model.pkl'
-RF_MODEL_PATH = 'random_forest_model.pkl'
-
-# Initialize model variables
-model_xgb = None
-model_rf = None
-
-print("ℹ️  Only LightGBM model is available. XGBoost and Random Forest models not found.")
+print("ℹ️  Using LightGBM model for financial forecasting.")
 
 # --- Info Loading ---
 try:
@@ -55,7 +49,7 @@ REQUIRED_FIELDS = [
 # --- Pydantic Models ---
 class FeatureInput(BaseModel):
     features: List[float]
-    model: str = 'xgboost'
+    model: str = 'lightgbm'
 
 class ChatRequest(BaseModel):
     message: str
@@ -63,39 +57,99 @@ class ChatRequest(BaseModel):
     preferred_model: str = None
     history: list = None
 
+class AdvancedMetrics(BaseModel):
+    """Advanced metrics that users can override in advanced mode."""
+    sales_marketing: float = None
+    ebitda: float = None
+    cash_burn: float = None
+    rule_of_40: float = None
+    arr_yoy_growth: float = None
+    revenue_yoy_growth: float = None
+    magic_number: float = None
+    burn_multiple: float = None
+    customers_eop: float = None
+    expansion_upsell: float = None
+    churn_reduction: float = None
+    gross_margin: float = None
+    headcount: float = None
+    net_profit_margin: float = None
+
+class HistoricalARR(BaseModel):
+    q1_arr: float = None  # 4 quarters ago
+    q2_arr: float = None  # 3 quarters ago  
+    q3_arr: float = None  # 2 quarters ago
+    q4_arr: float = None  # 1 quarter ago (most recent)
+
 class GuidedInputRequest(BaseModel):
     company_name: str
-    # Q1 2024
-    q1_arr: float
-    q1_net_new_arr: float
-    q1_qrr: float
-    q1_headcount: int
-    q1_gross_margin: float
-    q1_net_profit_loss: float
-    # Q2 2024
-    q2_arr: float
-    q2_net_new_arr: float
-    q2_qrr: float
-    q2_headcount: int
-    q2_gross_margin: float
-    q2_net_profit_loss: float
-    # Q3 2024
-    q3_arr: float
-    q3_net_new_arr: float
-    q3_qrr: float
-    q3_headcount: int
-    q3_gross_margin: float
-    q3_net_profit_loss: float
-    # Q4 2024
-    q4_arr: float
-    q4_net_new_arr: float
-    q4_qrr: float
-    q4_headcount: int
-    q4_gross_margin: float
-    q4_net_profit_loss: float
-    # Optional advanced mode
+    current_arr: float
+    net_new_arr: float
+    historical_arr: HistoricalARR = None  # Optional historical ARR data
     advanced_mode: bool = False
-    advanced_metrics: dict | None = None
+    advanced_metrics: AdvancedMetrics = None
+
+# Validation constants for enhanced mode
+VALID_SECTORS = [
+    "Cyber Security",
+    "Data & Analytics", 
+    "Infrastructure & Network",
+    "Communication & Collaboration",
+    "Marketing & Customer Experience",
+    "Other"
+]
+
+VALID_COUNTRIES = [
+    "United States",
+    "Israel",
+    "Germany", 
+    "United Kingdom",
+    "France",
+    "Other"
+]
+
+VALID_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "Other"]
+
+class EnhancedGuidedInputRequest(BaseModel):
+    # Basic inputs (required)
+    company_name: str = None
+    current_arr: float
+    net_new_arr: float
+    
+    # Enhanced mode (optional)
+    enhanced_mode: bool = False
+    
+    # Enhanced inputs (optional, only used if enhanced_mode=True)
+    sector: str = None
+    country: str = None
+    currency: str = None
+    
+    # Historical data (optional)
+    historical_arr: HistoricalARR = None
+    
+    # Advanced metrics (optional)
+    advanced_mode: bool = False
+    advanced_metrics: AdvancedMetrics = None
+    
+    @validator('sector')
+    def validate_sector(cls, v, values):
+        if values.get('enhanced_mode') and v is not None:
+            if v not in VALID_SECTORS:
+                raise ValueError(f'Invalid sector. Must be one of: {", ".join(VALID_SECTORS)}')
+        return v
+    
+    @validator('country')
+    def validate_country(cls, v, values):
+        if values.get('enhanced_mode') and v is not None:
+            if v not in VALID_COUNTRIES:
+                raise ValueError(f'Invalid country. Must be one of: {", ".join(VALID_COUNTRIES)}')
+        return v
+    
+    @validator('currency')
+    def validate_currency(cls, v, values):
+        if values.get('enhanced_mode') and v is not None:
+            if v not in VALID_CURRENCIES:
+                raise ValueError(f'Invalid currency. Must be one of: {", ".join(VALID_CURRENCIES)}')
+        return v
 
 # --- Utility Functions ---
 def parse_features(input_str: str):
@@ -114,14 +168,22 @@ def arr_tool(input_str: str, model_choice: str):
     features = parse_features(input_str)
     if features is None or len(features) != 28:
         return "Please provide exactly 28 comma-separated features (7 per quarter for 4 quarters)."
-    if model_choice == 'random_forest':
-        result = predict_arr_growth(model_rf, features)
-        return f"[Random Forest] Predicted ARR YoY growth for the next 4 quarters: {result}"
-    else:
-        result = predict_arr_growth(model_xgb, features)
-        return f"[XGBoost] Predicted ARR YoY growth for the next 4 quarters: {result}"
+    # Use LightGBM model for all predictions
+    from financial_prediction import load_trained_model, predict_future_arr
+    try:
+        model = load_trained_model('lightgbm_financial_model.pkl')
+        if model:
+            # Create a simple DataFrame for prediction
+            import pandas as pd
+            df = pd.DataFrame([features], columns=[f'feature_{i}' for i in range(28)])
+            result = predict_future_arr(model, df)
+            return f"[LightGBM] Predicted ARR YoY growth for the next 4 quarters: {result}"
+        else:
+            return "Model not available. Please use the guided forecast endpoint instead."
+    except Exception as e:
+        return f"Error making prediction: {str(e)}"
 
-def csv_tool(input_str: str, model_choice: str = 'xgboost'):
+def csv_tool(input_str: str, model_choice: str = 'lightgbm'):
     try:
         if os.path.exists(input_str):
             df = pd.read_csv(input_str)
@@ -145,31 +207,21 @@ def csv_tool(input_str: str, model_choice: str = 'xgboost'):
         return f"Error processing CSV: {e}"
 
 # --- LangChain Tools ---
-arr_growth_tool_xgb = LC_Tool(
-    name="XGBoost ARR Growth Predictor",
-    func=lambda s: arr_tool(s, 'xgboost'),
-    description="Predicts ARR YoY growth for the next 4 quarters using the XGBoost multi-output model. Input: 28 comma-separated features."
+arr_growth_tool_lgbm = LC_Tool(
+    name="LightGBM ARR Growth Predictor",
+    func=lambda s: arr_tool(s, 'lightgbm'),
+    description="Predicts ARR YoY growth for the next 4 quarters using the LightGBM model. Input: 28 comma-separated features."
 )
-arr_growth_tool_rf = LC_Tool(
-    name="Random Forest ARR Growth Predictor",
-    func=lambda s: arr_tool(s, 'random_forest'),
-    description="Predicts ARR YoY growth for the next 4 quarters using the Random Forest multi-output model. Input: 28 comma-separated features."
-)
-csv_growth_tool_xgb = LC_Tool(
-    name="XGBoost CSV ARR Growth Predictor",
-    func=lambda s: csv_tool(s, 'xgboost'),
-    description="Predicts ARR YoY growth for the next 4 quarters using XGBoost from a CSV file or CSV string."
-)
-csv_growth_tool_rf = LC_Tool(
-    name="Random Forest CSV ARR Growth Predictor",
-    func=lambda s: csv_tool(s, 'random_forest'),
-    description="Predicts ARR YoY growth for the next 4 quarters using Random Forest from a CSV file or CSV string."
+csv_growth_tool_lgbm = LC_Tool(
+    name="LightGBM CSV ARR Growth Predictor",
+    func=lambda s: csv_tool(s, 'lightgbm'),
+    description="Predicts ARR YoY growth for the next 4 quarters using LightGBM from a CSV file or CSV string."
 )
 
 # --- LangChain Agent ---
 llm = ChatOpenAI(temperature=0, openai_api_key=os.getenv("OPENAI_API_KEY"))
 agent = initialize_agent(
-    tools=[arr_growth_tool_xgb, arr_growth_tool_rf, csv_growth_tool_xgb, csv_growth_tool_rf],
+    tools=[arr_growth_tool_lgbm, csv_growth_tool_lgbm],
     llm=llm,
     agent_type="chat-zero-shot-react-description",
     verbose=True
@@ -178,13 +230,23 @@ agent = initialize_agent(
 # --- API Endpoints ---
 @app.post("/predict_raw")
 def predict_raw(data: FeatureInput):
-    """Predict ARR growth from raw features."""
+    """Predict ARR growth from raw features using LightGBM model."""
     if len(data.features) != 28:
         return JSONResponse(status_code=400, content={"error": "Exactly 28 features required (7 per quarter for 4 quarters)."})
-    model = model_rf if data.model == 'random_forest' else model_xgb
-    prediction = model.predict(np.array([data.features]))
-    model_used = 'Random Forest' if data.model == 'random_forest' else 'XGBoost'
-    return {"model": model_used, "prediction": prediction.tolist()}
+    
+    # Use LightGBM model for all predictions
+    from financial_prediction import load_trained_model, predict_future_arr
+    try:
+        model = load_trained_model('lightgbm_financial_model.pkl')
+        if model:
+            import pandas as pd
+            df = pd.DataFrame([data.features], columns=[f'feature_{i}' for i in range(28)])
+            result = predict_future_arr(model, df)
+            return {"model": "LightGBM", "prediction": result}
+        else:
+            return JSONResponse(status_code=500, content={"error": "LightGBM model not available"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Prediction failed: {str(e)}"})
 
 @app.post("/predict_csv")
 def predict_csv(file: UploadFile = File(...), model: str = Form('lightgbm')):
@@ -294,37 +356,23 @@ def predict_csv(file: UploadFile = File(...), model: str = Form('lightgbm')):
                 raise Exception("LightGBM model not available")
                 
         except Exception as e:
-            # Fallback to simple calculation if LightGBM fails and no other models available
-            if model_xgb is None and model_rf is None:
-                # Simple growth projection as fallback
-                last_arr = df_processed['cARR'].iloc[-1]
-                growth_rate = df_processed['ARR YoY Growth (in %)'].iloc[-1] / 100
-                
-                # Project next 4 quarters with slight deceleration
-                future_arr = []
-                for i in range(1, 5):
-                    deceleration = 0.95 ** i  # 5% deceleration per quarter
-                    projected_growth = growth_rate * deceleration
-                    future_arr.append(last_arr * (1 + projected_growth))
-                
-                return {
-                    "model": "Fallback Calculation",
-                    "prediction": [{"quarter": f"Q{i+1}", "projected_arr": arr} for i, arr in enumerate(future_arr)],
-                    "message": "LightGBM failed, used fallback calculation"
-                }
-            else:
-                # Fallback to existing models if available
-                model_obj = model_rf if model == 'random_forest' else model_xgb
-                if model_obj is not None:
-                    prediction = model_obj.predict(np.array([features]))
-                    model_used = 'Random Forest' if model == 'random_forest' else 'XGBoost'
-                    return {
-                        "model": model_used,
-                        "prediction": prediction.tolist(),
-                        "message": f"LightGBM failed, used {model_used} as fallback"
-                    }
-                else:
-                    return JSONResponse(status_code=500, content={"error": "No models available for prediction"})
+                        # Fallback to simple calculation if LightGBM fails
+            # Simple growth projection as fallback
+            last_arr = df_processed['cARR'].iloc[-1]
+            growth_rate = df_processed['ARR YoY Growth (in %)'].iloc[-1] / 100
+            
+            # Project next 4 quarters with slight deceleration
+            future_arr = []
+            for i in range(1, 5):
+                deceleration = 0.95 ** i  # 5% deceleration per quarter
+                projected_growth = growth_rate * deceleration
+                future_arr.append(last_arr * (1 + projected_growth))
+            
+            return {
+                "model": "Fallback Calculation",
+                "prediction": [{"quarter": f"Q{i+1}", "projected_arr": arr} for i, arr in enumerate(future_arr)],
+                "message": "LightGBM failed, used fallback calculation"
+            }
             
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
@@ -363,9 +411,7 @@ def chat_endpoint(request: ChatRequest):
                         # This is a simplified approach - in practice, you might want to map these to proper columns
                         
                         # For now, let's use the guided forecast approach with extracted data
-                        from guided_input_system import GuidedInputSystem
-                        
-                        guided_system = GuidedInputSystem()
+                        guided_system = EnhancedGuidedInputSystem()
                         guided_system.initialize_from_training_data()
                         
                         # Try to extract meaningful data from the 28 features
@@ -490,308 +536,136 @@ def makro_analysis():
     move = move_trend_analysis()
     return {"gprh": gprh, "vix": vix, "move": move}
 
-@app.post("/predict")
-def predict(request: GuidedInputRequest):
-    """Unified forecasting endpoint that handles both basic and advanced mode using 4 quarters of data. MAIN ENDPOINT."""
+@app.post("/guided_forecast")
+def guided_forecast(request: EnhancedGuidedInputRequest):
+    """Guided forecasting with intelligent defaults - using the original working logic."""
     try:
-        from guided_input_system import GuidedInputSystem
-        from enhanced_prediction import EnhancedFinancialPredictor
-        import pandas as pd
+        from financial_prediction import load_trained_model, predict_future_arr
         
         # Initialize guided system
-        guided_system = GuidedInputSystem()
+        guided_system = EnhancedGuidedInputSystem()
         guided_system.initialize_from_training_data()
         
-        # Create DataFrame with 4 quarters of data - PREDICT ENDPOINT
-        quarters_data = []
+        # Build primary inputs (exactly as in the working version)
+        primary_inputs = {
+            'cARR': request.current_arr,
+            'Net New ARR': request.net_new_arr,
+            'ARR YoY Growth (in %)': request.growth_rate or (request.net_new_arr / request.current_arr * 100) if request.current_arr > 0 else 0,
+            'Quarter Num': 1
+        }
         
-        # Q1 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q1',
-            'Quarter Num': 1,
-            'cARR': request.q1_arr,
-            'Net New ARR': request.q1_net_new_arr,
-            'QRR': request.q1_qrr,
-            'Headcount (HC)': request.q1_headcount,
-            'Gross Margin (in %)': request.q1_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q1_net_profit_loss
-        })
+        # Infer secondary metrics using the guided system (exactly as in working version)
+        inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
         
-        # Q2 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q2',
-            'Quarter Num': 2,
-            'cARR': request.q2_arr,
-            'Net New ARR': request.q2_net_new_arr,
-            'QRR': request.q2_qrr,
-            'Headcount (HC)': request.q2_headcount,
-            'Gross Margin (in %)': request.q2_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q2_net_profit_loss
-        })
-        
-        # Q3 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q3',
-            'Quarter Num': 3,
-            'cARR': request.q3_arr,
-            'Net New ARR': request.q3_net_new_arr,
-            'QRR': request.q3_qrr,
-            'Headcount (HC)': request.q3_headcount,
-            'Gross Margin (in %)': request.q3_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q3_net_profit_loss
-        })
-        
-        # Q4 2024
-        quarters_data.append({
-            'id_company': request.company_name,
-            'Financial Quarter': 'FY24 Q4',
-            'Quarter Num': 4,
-            'cARR': request.q4_arr,
-            'Net New ARR': request.q4_net_new_arr,
-            'QRR': request.q4_qrr,
-            'Headcount (HC)': request.q4_headcount,
-            'Gross Margin (in %)': request.q4_gross_margin,
-            'Net Profit/Loss Margin (in %)': request.q4_net_profit_loss
-        })
-        
-        # Create DataFrame
-        forecast_df = pd.DataFrame(quarters_data)
-        
-        # Calculate additional required fields for LightGBM model (same as CSV processing)
-        for i, row in forecast_df.iterrows():
-            # Calculate ARR YoY Growth
-            if i == 0:  # Q1 - use Q1 data as baseline
-                forecast_df.loc[i, 'ARR YoY Growth (in %)'] = 0
-            else:
-                prev_arr = forecast_df.loc[i-1, 'cARR']
-                if prev_arr > 0:
-                    forecast_df.loc[i, 'ARR YoY Growth (in %)'] = ((row['cARR'] - prev_arr) / prev_arr) * 100
-                else:
-                    forecast_df.loc[i, 'ARR YoY Growth (in %)'] = 0
+        # Apply enhanced mode overrides if enabled
+        if request.enhanced_mode:
+            print(f"🔧 Enhanced mode enabled - applying user-provided categorical data")
             
-            # Calculate Revenue YoY Growth (same as ARR for SaaS)
-            forecast_df.loc[i, 'Revenue YoY Growth (in %)'] = forecast_df.loc[i, 'ARR YoY Growth (in %)']
+            # Map enhanced inputs to internal field names
+            enhanced_mapping = {
+                'sector': 'Sector',
+                'country': 'Country', 
+                'currency': 'Currency'
+            }
             
-            # Calculate Magic Number (Sales Efficiency)
-            if row['Net New ARR'] > 0:
-                # Estimate Sales & Marketing based on typical Magic Number
-                typical_magic_number = 0.7
-                estimated_sales_marketing = row['Net New ARR'] / typical_magic_number
-                forecast_df.loc[i, 'Sales & Marketing'] = min(estimated_sales_marketing, row['cARR'] * 0.8)
-            else:
-                forecast_df.loc[i, 'Sales & Marketing'] = 0
-            
-            # Calculate EBITDA (simplified)
-            forecast_df.loc[i, 'EBITDA'] = row['cARR'] * (row['Gross Margin (in %)'] / 100) - forecast_df.loc[i, 'Sales & Marketing']
-            
-            # Calculate Cash Burn (simplified)
-            forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] = -forecast_df.loc[i, 'EBITDA']
-            
-            # Calculate LTM Rule of 40% (ARR)
-            forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = forecast_df.loc[i, 'ARR YoY Growth (in %)'] + (row['Gross Margin (in %)'] - 50)
-            
-            # Calculate Magic Number
-            if forecast_df.loc[i, 'Sales & Marketing'] > 0:
-                forecast_df.loc[i, 'Magic_Number'] = forecast_df.loc[i, 'Net New ARR'] / forecast_df.loc[i, 'Sales & Marketing']
-            else:
-                forecast_df.loc[i, 'Magic_Number'] = 0
-            
-            # Calculate Burn Multiple
-            if forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] != 0:
-                forecast_df.loc[i, 'Burn_Multiple'] = abs(forecast_df.loc[i, 'Net New ARR'] / forecast_df.loc[i, 'Cash Burn (OCF & ICF)'])
-            else:
-                forecast_df.loc[i, 'Burn_Multiple'] = 0
-            
-            # Calculate ARR per Headcount
-            if row['Headcount (HC)'] > 0:
-                forecast_df.loc[i, 'ARR_per_Headcount'] = row['cARR'] / row['Headcount (HC)']
-            else:
-                forecast_df.loc[i, 'ARR_per_Headcount'] = 0
+            # Apply enhanced overrides for non-None values
+            for enhanced_key, value in request.dict().items():
+                if value is not None and enhanced_key in enhanced_mapping:
+                    field_name = enhanced_mapping[enhanced_key]
+                    inferred_metrics[field_name] = value
+                    print(f"🔧 Enhanced override: {field_name} = {value}")
         
-        # Add missing columns required by LightGBM model (same as CSV processing)
-        if 'Sales & Marketing' not in forecast_df.columns:
-            # Estimate Sales & Marketing based on Net New ARR and typical Magic Number
-            typical_magic_number = 0.7
-            forecast_df['Sales & Marketing'] = forecast_df['Net New ARR'] / typical_magic_number
-            # Cap at reasonable levels (not more than 80% of ARR)
-            forecast_df['Sales & Marketing'] = forecast_df['Sales & Marketing'].clip(upper=forecast_df['cARR'] * 0.8)
-        
-        # Ensure all required fields are present (same as CSV processing)
-        required_fields = [
-            "ARR YoY Growth (in %)", "Revenue YoY Growth (in %)", "Gross Margin (in %)",
-            "EBITDA", "Cash Burn (OCF & ICF)", "LTM Rule of 40% (ARR)", "Quarter Num"
-        ]
-        
-        for field in required_fields:
-            if field not in forecast_df.columns:
-                if field == 'EBITDA':
-                    forecast_df[field] = forecast_df['cARR'] * 0.2  # Estimate 20% of ARR
-                elif field == 'Cash Burn (OCF & ICF)':
-                    forecast_df[field] = -forecast_df['cARR'] * 0.3  # Estimate -30% of ARR
-                elif field == 'LTM Rule of 40% (ARR)':
-                    forecast_df[field] = forecast_df['ARR YoY Growth (in %)'] + forecast_df['Gross Margin (in %)'] * 0.2
-                elif field == 'Quarter Num':
-                    forecast_df[field] = range(1, len(forecast_df) + 1)
-                else:
-                    forecast_df[field] = 0
-        
-        # Add any additional fields that might be expected by the LightGBM model
-        if 'Net_Profit_Loss_Margin_Percent' not in forecast_df.columns:
-            forecast_df['Net_Profit_Loss_Margin_Percent'] = forecast_df['Net Profit/Loss Margin (in %)']
-        
-        # Handle advanced mode if enabled - smart override logic
+        # Apply advanced mode overrides if provided
+        advanced_metrics_dict = {}
         if request.advanced_mode and request.advanced_metrics:
-            print(f"🔧 Advanced mode enabled - smart override logic")
+            # Map advanced metrics to the expected field names
+            advanced_mapping = {
+                'sales_marketing': 'Sales & Marketing',
+                'ebitda': 'EBITDA',
+                'cash_burn': 'Cash Burn (OCF & ICF)',
+                'rule_of_40': 'LTM Rule of 40% (ARR)',
+                'arr_yoy_growth': 'ARR YoY Growth (in %)',
+                'revenue_yoy_growth': 'Revenue YoY Growth (in %)',
+                'magic_number': 'Magic_Number',
+                'burn_multiple': 'Burn_Multiple',
+                'customers_eop': 'Customers (EoP)',
+                'expansion_upsell': 'Expansion & Upsell',
+                'churn_reduction': 'Churn & Reduction',
+                'gross_margin': 'Gross Margin (in %)',
+                'headcount': 'Headcount (HC)',
+                'net_profit_margin': 'Net Profit/Loss Margin (in %)'
+            }
             
-            # Apply advanced metrics to each quarter
-            for i, row in forecast_df.iterrows():
-                quarter_num = i + 1
-                quarter_key = f"q{quarter_num}"
-                
-                # Apply quarter-specific advanced metrics if available
-                if quarter_key in request.advanced_metrics:
-                    quarter_metrics = request.advanced_metrics[quarter_key]
-                    
-                    # Smart override logic: 0 = estimate automatically, >0 = use user value
-                    for metric_name, metric_value in quarter_metrics.items():
-                        if metric_value == 0:
-                            # User set to 0 - estimate automatically (keep current estimate)
-                            print(f"  🔧 Q{quarter_num} {metric_name}: 0 → estimating automatically")
-                            continue
-                        elif metric_value > 0 or metric_value < 0:  # Allow negative values for cash burn, churn, etc.
-                            # User provided a value - override the estimate
-                            if metric_name == 'headcount':
-                                forecast_df.loc[i, 'Headcount (HC)'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'sales_marketing':
-                                forecast_df.loc[i, 'Sales & Marketing'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'cash_burn':
-                                forecast_df.loc[i, 'Cash Burn (OCF & ICF)'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'gross_margin':
-                                forecast_df.loc[i, 'Gross Margin (in %)'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}%")
-                            elif metric_name == 'ebitda':
-                                forecast_df.loc[i, 'EBITDA'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            elif metric_name == 'ltm_rule_40':
-                                forecast_df.loc[i, 'LTM Rule of 40% (ARR)'] = metric_value
-                                print(f"  🔧 Q{quarter_num} {metric_name}: overrode with {metric_value}")
-                            else:
-                                print(f"  ⚠️ Q{quarter_num} {metric_name}: unsupported metric '{metric_name}', skipping")
-                
-                # Apply global overrides if available (affects all quarters)
-                if 'global' in request.advanced_metrics:
-                    global_metrics = request.advanced_metrics['global']
-                    for metric_name, metric_value in global_metrics.items():
-                        if metric_value == 0:
-                            # User set to 0 - estimate automatically
-                            print(f"  🔧 Global {metric_name}: 0 → estimating automatically")
-                            continue
-                        elif metric_name == 'magic_number_override':
-                            # Override Magic Number calculation for all quarters
-                            for j in range(len(forecast_df)):
-                                if forecast_df.loc[j, 'Sales & Marketing'] > 0:
-                                    # Magic Number = Net New ARR / Sales & Marketing
-                                    # If user wants Magic Number = 0.8, then Sales & Marketing = Net New ARR / 0.8
-                                    target_magic_number = metric_value
-                                    if target_magic_number > 0:
-                                        forecast_df.loc[j, 'Sales & Marketing'] = forecast_df.loc[j, 'Net New ARR'] / target_magic_number
-                                        # Recalculate Magic Number to ensure consistency
-                                        forecast_df.loc[j, 'Magic_Number'] = target_magic_number
-                            print(f"  🔧 Applied global Magic Number override: {metric_value}")
-                        elif metric_name == 'burn_multiple_override':
-                            # Override Burn Multiple calculation for all quarters
-                            for j in range(len(forecast_df)):
-                                if forecast_df.loc[j, 'Cash Burn (OCF & ICF)'] != 0:
-                                    forecast_df.loc[j, 'Burn_Multiple'] = abs(forecast_df.loc[j, 'Net New ARR'] / metric_value)
-                            print(f"  🔧 Applied global Burn Multiple override: {metric_value}")
-                        elif metric_name == 'arr_per_headcount_override':
-                            # Override ARR per Headcount for all quarters
-                            for j in range(len(forecast_df)):
-                                if forecast_df.loc[j, 'Headcount (HC)'] > 0:
-                                    forecast_df.loc[j, 'ARR_per_Headcount'] = metric_value
-                            print(f"  🔧 Applied global ARR per Headcount override: {metric_value}")
-                        else:
-                            print(f"  ⚠️ Global {metric_name}: unknown metric, skipping")
+            # Apply overrides for non-None values
+            for adv_key, value in request.advanced_metrics.dict().items():
+                if value is not None and adv_key in advanced_mapping:
+                    field_name = advanced_mapping[adv_key]
+                    inferred_metrics[field_name] = value
+                    advanced_metrics_dict[field_name] = value
+                    print(f"🔧 Advanced override: {field_name} = {value}")
         
-        # Ensure the DataFrame has the same structure as CSV processing
-        print(f"🔍 Guided forecast DataFrame shape: {forecast_df.shape}")
-        print(f"🔍 Guided forecast DataFrame columns: {list(forecast_df.columns)}")
-        print(f"🔍 First row sample: {forecast_df.iloc[0].to_dict()}")
+        # Add company name and quarter (exactly as in working version)
+        inferred_metrics['id_company'] = request.company_name or 'Anonymous Company'
+        inferred_metrics['Financial Quarter'] = 'FY24 Q1'
         
-        # Clean DataFrame to prevent JSON serialization issues
-        forecast_df = forecast_df.replace([np.inf, -np.inf], np.nan)
-        forecast_df = forecast_df.fillna(0)
+        # Create forecast-ready DataFrame using the enhanced guided system
+        if request.historical_arr and all([request.historical_arr.q1_arr, request.historical_arr.q2_arr, 
+                                         request.historical_arr.q3_arr, request.historical_arr.q4_arr]):
+            # Use historical ARR data if provided
+            historical_arr = [
+                request.historical_arr.q1_arr,
+                request.historical_arr.q2_arr,
+                request.historical_arr.q3_arr,
+                request.historical_arr.q4_arr
+            ]
+            forecast_df = guided_system.create_forecast_input_with_history(
+                current_arr=request.current_arr,
+                net_new_arr=request.net_new_arr,
+                historical_arr=historical_arr,
+                advanced_metrics=advanced_metrics_dict if request.advanced_mode else None
+            )
+        else:
+            # Use minimal inputs
+            forecast_df = guided_system.create_forecast_input_with_history(
+                current_arr=request.current_arr,
+                net_new_arr=request.net_new_arr,
+                advanced_metrics=advanced_metrics_dict if request.advanced_mode else None
+            )
         
-        # Try to make prediction with trained model
+        # Try to make prediction with trained model (exactly as in working version)
         try:
-            from financial_prediction import load_trained_model, predict_future_arr
             trained_model = load_trained_model('lightgbm_financial_model.pkl')
             if trained_model:
-                forecast_results = predict_future_arr(trained_model, forecast_df)
-                model_used = "LightGBM Model"
+                # Add uncertainty quantification
+                from simple_uncertainty_prediction import predict_with_simple_uncertainty
+                forecast_results = predict_with_simple_uncertainty(forecast_df, uncertainty_factor=0.1)
+                model_used = "LightGBM Model with Uncertainty (±10%)"
                 forecast_success = True
             else:
                 raise Exception("No trained model available")
         except Exception as e:
-            # Use fallback calculation
+            # Use fallback calculation (exactly as in working version)
+            from enhanced_prediction import EnhancedFinancialPredictor
             predictor = EnhancedFinancialPredictor()
-            # Use all 4 quarters for fallback calculation instead of just the latest
-            print(f"⚠️ LightGBM failed, using fallback calculation with 4 quarters of data")
-            try:
-                # Try to use all 4 quarters for better fallback prediction
-                forecast_results = predictor._generate_fallback_forecast(forecast_df.to_dict('records'))
-                model_used = "Fallback Calculation (4 Quarters)"
-                forecast_success = False
-            except Exception as fallback_error:
-                # If that fails, fall back to single quarter
-                print(f"⚠️ Multi-quarter fallback failed, using single quarter: {fallback_error}")
-                latest_quarter = forecast_df.iloc[-1].to_dict()
-                forecast_results = predictor._generate_fallback_forecast(latest_quarter)
-                model_used = "Fallback Calculation (Single Quarter)"
-                forecast_success = False
+            forecast_results = predictor._generate_fallback_forecast(inferred_metrics)
+            model_used = "Fallback Calculation"
+            forecast_success = False
         
-        # Generate insights based on latest quarter
-        latest_q4 = forecast_df.iloc[-1]
-        
-        # Safe insight generation with error handling
-        try:
-            size_category = 'Early Stage' if latest_q4['cARR'] < 1e6 else 'Growth Stage' if latest_q4['cARR'] < 10e6 else 'Scale Stage' if latest_q4['cARR'] < 100e6 else 'Enterprise'
-            growth_insight = f"Q4 Growth rate: {latest_q4['ARR YoY Growth (in %)']:.1f}%"
-            efficiency_insight = f"Q4 Magic Number: {latest_q4['Magic_Number']:.2f}"
-            quarterly_trend = f"ARR growth: Q1: {forecast_df.iloc[0]['cARR']:,.0f} → Q4: {latest_q4['cARR']:,.0f}"
-            headcount_trend = f"Team growth: Q1: {forecast_df.iloc[0]['Headcount (HC)']} → Q4: {latest_q4['Headcount (HC)']}"
-        except Exception as e:
-            print(f"⚠️ Error generating insights: {e}")
-            size_category = 'Unknown'
-            growth_insight = 'Growth rate: N/A'
-            efficiency_insight = 'Magic Number: N/A'
-            quarterly_trend = 'ARR growth: N/A'
-            headcount_trend = 'Team growth: N/A'
-        
+        # Generate insights (exactly as in working version)
         insights = {
-            'size_category': size_category,
-            'growth_insight': growth_insight,
-            'efficiency_insight': efficiency_insight,
-            'quarterly_trend': quarterly_trend,
-            'headcount_trend': headcount_trend
+            'size_category': 'Early Stage' if request.current_arr < 1e6 else 'Growth Stage' if request.current_arr < 10e6 else 'Scale Stage' if request.current_arr < 100e6 else 'Enterprise',
+            'growth_insight': f"Growth rate: {primary_inputs['ARR YoY Growth (in %)']:.1f}%",
+            'efficiency_insight': f"Magic Number: {inferred_metrics.get('Magic_Number', 0):.2f}"
         }
         
         return {
-            "company_name": request.company_name,
-            "input_metrics": forecast_df.to_dict('records'),
+            "company_name": request.company_name or "Anonymous Company",
+            "input_metrics": inferred_metrics,
             "forecast_results": forecast_results.to_dict('records') if hasattr(forecast_results, 'to_dict') else forecast_results,
             "insights": insights,
             "model_used": model_used,
             "forecast_success": forecast_success,
-            "advanced_mode_enabled": request.advanced_mode,
-            "advanced_metrics_count": len(request.advanced_metrics) if request.advanced_metrics else 0,
-            "message": "Guided forecast completed successfully using 4 quarters of data!"
+            "message": "Guided forecast completed successfully using the original working logic!"
         }
         
     except Exception as e:
@@ -810,8 +684,26 @@ def root():
             "predict_raw": "POST /predict_raw - Predict from raw features",
             "predict_csv": "POST /predict_csv - Predict from CSV upload",
             "chat": "POST /chat - Conversational AI interface",
-            "predict": "POST /predict - NEW: Unified forecasting endpoint for both basic and advanced mode (requires 4 quarters of data)",
+            "guided_forecast": "POST /guided_forecast - Guided input with intelligent defaults + Advanced Mode",
             "makro_analysis": "GET /makro_analysis - Macroeconomic indicators"
         },
-        "new_feature": "Unified Forecasting System - Single endpoint that handles both basic guided input and advanced metrics override for sophisticated financial modeling!"
+        "features": {
+            "guided_input": "Only need ARR + Net New ARR, intelligently infers the rest",
+            "enhanced_mode": "Optional sector/country/currency selection for better accuracy",
+            "historical_arr": "Provide 4 quarters of historical ARR data for better predictions",
+            "advanced_mode": "Override any of 14 key metrics with your own values",
+            "uncertainty_quantification": "±10% uncertainty bands on all predictions",
+            "adaptive_defaults": "Uses training data relationships for realistic estimates"
+        },
+        "advanced_metrics": [
+            "sales_marketing", "ebitda", "cash_burn", "rule_of_40", 
+            "arr_yoy_growth", "revenue_yoy_growth", "magic_number", 
+            "burn_multiple", "customers_eop", "expansion_upsell", 
+            "churn_reduction", "gross_margin", "headcount", "net_profit_margin"
+        ],
+        "enhanced_mode_options": {
+            "sectors": VALID_SECTORS,
+            "countries": VALID_COUNTRIES,
+            "currencies": VALID_CURRENCIES
+        }
     } 

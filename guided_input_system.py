@@ -418,16 +418,54 @@ class GuidedInputSystem:
     
     def create_forecast_input(self, guided_inputs: Dict) -> pd.DataFrame:
         """
-        Create a properly formatted DataFrame for forecasting.
+        Create a properly formatted DataFrame for forecasting with historical data.
         
         Args:
             guided_inputs: Dictionary from guided input workflow
             
         Returns:
-            DataFrame ready for model prediction
+            DataFrame ready for model prediction with historical quarters
         """
-        # Create DataFrame with proper structure
-        df = pd.DataFrame([guided_inputs])
+        # Create historical data for the past 8 quarters (2 years)
+        quarters = []
+        base_arr = guided_inputs['cARR']
+        base_growth = guided_inputs['ARR YoY Growth (in %)'] / 100  # Convert to decimal
+        
+        # Create historical quarters (FY23 Q1 to FY24 Q4)
+        for year in [23, 24]:
+            for quarter in [1, 2, 3, 4]:
+                quarter_data = guided_inputs.copy()
+                quarter_data['Financial Quarter'] = f'FY{year} Q{quarter}'
+                quarter_data['Quarter Num'] = quarter
+                
+                # Calculate historical ARR based on growth rate
+                if year == 23:
+                    # FY23: Calculate backwards from current ARR
+                    quarters_back = (24 - year) * 4 + (4 - quarter)
+                    historical_arr = base_arr / ((1 + base_growth) ** quarters_back)
+                else:
+                    # FY24: Use current ARR for Q4, calculate others
+                    if quarter == 4:
+                        historical_arr = base_arr
+                    else:
+                        quarters_back = 4 - quarter
+                        historical_arr = base_arr / ((1 + base_growth) ** quarters_back)
+                
+                quarter_data['cARR'] = historical_arr
+                quarter_data['Net New ARR'] = historical_arr * base_growth if quarter > 1 else 0
+                
+                # Adjust other metrics proportionally
+                if 'Headcount (HC)' in quarter_data:
+                    quarter_data['Headcount (HC)'] = max(1, int(quarter_data['Headcount (HC)'] * (historical_arr / base_arr) ** 0.5))
+                if 'Sales & Marketing' in quarter_data:
+                    quarter_data['Sales & Marketing'] = quarter_data['Sales & Marketing'] * (historical_arr / base_arr)
+                if 'Cash Burn (OCF & ICF)' in quarter_data:
+                    quarter_data['Cash Burn (OCF & ICF)'] = quarter_data['Cash Burn (OCF & ICF)'] * (historical_arr / base_arr)
+                
+                quarters.append(quarter_data)
+        
+        # Create DataFrame
+        df = pd.DataFrame(quarters)
         
         # Ensure all required columns are present
         required_columns = [
@@ -435,7 +473,7 @@ class GuidedInputSystem:
             'Revenue YoY Growth (in %)', 'Gross Margin (in %)', 'EBITDA',
             'Cash Burn (OCF & ICF)', 'LTM Rule of 40% (ARR)', 'Sales & Marketing',
             'Headcount (HC)', 'Customers (EoP)', 'Expansion & Upsell',
-            'Churn & Reduction', 'Quarter Num'
+            'Churn & Reduction', 'Quarter Num', 'Net New ARR'
         ]
         
         for col in required_columns:

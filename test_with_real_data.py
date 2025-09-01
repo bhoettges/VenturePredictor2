@@ -54,14 +54,19 @@ def test_with_real_data():
     # Try to make prediction with trained model
     try:
         from financial_prediction import load_trained_model, predict_future_arr
+        print("🔍 Loading trained model...")
         trained_model = load_trained_model('lightgbm_financial_model.pkl')
         if trained_model:
+            print("🔍 Making prediction with trained model...")
             forecast_results = predict_future_arr(trained_model, forecast_df)
             model_used = "Trained Model"
             forecast_success = True
+            print("✅ Trained model prediction successful!")
         else:
             raise Exception("No trained model available")
     except Exception as e:
+        print(f"❌ Trained model prediction failed: {str(e)}")
+        print("📊 Generating fallback forecast using industry benchmarks...")
         # Use fallback calculation
         forecast_results = predictor._generate_fallback_forecast(inferred_metrics)
         model_used = "Fallback Calculation"
@@ -100,4 +105,4 @@ def test_with_real_data():
     return forecast_results
 
 if __name__ == "__main__":
-    results = test_with_real_data() 
+    results = test_with_real_data()

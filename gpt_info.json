@@ -16,7 +16,7 @@
     "description": "DTCP is a global investment management platform focused on digital transformation, investing in growth-stage technology companies and supporting innovation in the venture capital ecosystem."
   },
   "model_details": {
-    "models": ["XGBoost", "Random Forest"],
+    "models": ["LightGBM"],
     "prediction_target": "ARR YoY growth for the next 4 quarters",
     "last_trained": "2024-05-01",
     "performance": {
