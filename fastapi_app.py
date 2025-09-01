@@ -265,18 +265,18 @@ def predict_csv(file: UploadFile = File(...), model: str = Form('lightgbm')):
         
         # Try different possible column names
         if 'ARR_End_of_Quarter' in latest_row:
-            current_arr = latest_row['ARR_End_of_Quarter']
+            current_arr = float(latest_row['ARR_End_of_Quarter'])
         elif 'cARR' in latest_row:
-            current_arr = latest_row['cARR']
+            current_arr = float(latest_row['cARR'])
         elif 'ARR' in latest_row:
-            current_arr = latest_row['ARR']
+            current_arr = float(latest_row['ARR'])
         
         if 'Quarterly_Net_New_ARR' in latest_row:
-            net_new_arr = latest_row['Quarterly_Net_New_ARR']
+            net_new_arr = float(latest_row['Quarterly_Net_New_ARR'])
         elif 'Net New ARR' in latest_row:
-            net_new_arr = latest_row['Net New ARR']
+            net_new_arr = float(latest_row['Net New ARR'])
         elif 'Net_New_ARR' in latest_row:
-            net_new_arr = latest_row['Net_New_ARR']
+            net_new_arr = float(latest_row['Net_New_ARR'])
         
         if current_arr is None or net_new_arr is None:
             return JSONResponse(status_code=400, content={
@@ -302,14 +302,17 @@ def predict_csv(file: UploadFile = File(...), model: str = Form('lightgbm')):
         }
         
         # Infer secondary metrics using the guided system
-        inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
+        inferred_metrics = guided_system._infer_secondary_metrics(current_arr, net_new_arr, growth_rate)
         
         # Add company name and quarter
         inferred_metrics['id_company'] = 'CSV Upload Company'
         inferred_metrics['Financial Quarter'] = 'FY24 Q1'
         
         # Create forecast-ready DataFrame
-        forecast_df = guided_system.create_forecast_input(inferred_metrics)
+        forecast_df = guided_system.create_forecast_input_with_history(
+            current_arr=current_arr,
+            net_new_arr=net_new_arr
+        )
         
         # Try to make prediction with trained model
         try:
@@ -366,6 +369,15 @@ def chat_endpoint(request: ChatRequest):
     arr_match = re.search(arr_pattern, request.message, re.IGNORECASE)
     net_new_match = re.search(net_new_pattern, request.message, re.IGNORECASE)
     
+    # Extract enhanced mode parameters (sector, country, currency)
+    sector_pattern = r'(?:sector|industry):\s*([a-zA-Z\s&]+)'
+    country_pattern = r'(?:country|location):\s*([a-zA-Z\s]+)'
+    currency_pattern = r'(?:currency):\s*([A-Z]{3})'
+    
+    sector_match = re.search(sector_pattern, request.message, re.IGNORECASE)
+    country_match = re.search(country_pattern, request.message, re.IGNORECASE)
+    currency_match = re.search(currency_pattern, request.message, re.IGNORECASE)
+    
     # Check for specific forecasting requests
     forecast_keywords = ['forecast', 'predict', 'projection', 'growth', 'future', 'next quarter', '2025']
     is_forecast_request = any(keyword in message for keyword in forecast_keywords)
@@ -413,6 +425,18 @@ def chat_endpoint(request: ChatRequest):
                 guided_system = EnhancedGuidedInputSystem()
                 guided_system.initialize_from_training_data()
                 
+                # Check for enhanced mode (sector, country, currency)
+                enhanced_mode = sector_match or country_match or currency_match
+                enhanced_metrics = {}
+                
+                if enhanced_mode:
+                    if sector_match:
+                        enhanced_metrics['sector'] = sector_match.group(1).strip()
+                    if country_match:
+                        enhanced_metrics['country'] = country_match.group(1).strip()
+                    if currency_match:
+                        enhanced_metrics['currency'] = currency_match.group(1).strip()
+                
                 # Build primary inputs
                 growth_rate = (net_new_arr / current_arr) * 100 if current_arr > 0 else 0
                 primary_inputs = {
@@ -423,12 +447,17 @@ def chat_endpoint(request: ChatRequest):
                 }
                 
                 # Infer secondary metrics
-                inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
+                inferred_metrics = guided_system._infer_secondary_metrics(current_arr, net_new_arr, growth_rate)
                 inferred_metrics['id_company'] = 'Chat User'
                 inferred_metrics['Financial Quarter'] = 'FY24 Q1'
                 
-                # Create forecast-ready DataFrame
-                forecast_df = guided_system.create_forecast_input(inferred_metrics)
+                # Create forecast-ready DataFrame with historical data (same as guided_forecast)
+                forecast_df = guided_system.create_forecast_input_with_history(
+                    current_arr=current_arr,
+                    net_new_arr=net_new_arr,
+                    enhanced_mode=enhanced_mode,
+                    enhanced_metrics=enhanced_metrics if enhanced_mode else None
+                )
                             
                 # Make prediction with uncertainty
                 try:
@@ -447,11 +476,15 @@ def chat_endpoint(request: ChatRequest):
                     model_used = "Fallback Calculation"
                 
                 # Generate conversational analysis
+                enhanced_info = ""
+                if enhanced_mode:
+                    enhanced_info = f"\nEnhanced context: {', '.join([f'{k}: {v}' for k, v in enhanced_metrics.items()])}"
+                
                 analysis_prompt = f"""
                 Based on the financial data provided:
                 - Current ARR: ${current_arr:,.0f}
                 - Net New ARR: ${net_new_arr:,.0f}
-                - Growth Rate: {growth_rate:.1f}%
+                - Growth Rate: {growth_rate:.1f}%{enhanced_info}
                 
                 And the forecast results showing growth predictions for the next 4 quarters, provide a conversational, helpful analysis that includes:
                 1. What the numbers mean in simple terms
@@ -530,15 +563,22 @@ def chat_endpoint(request: ChatRequest):
             f"Contact: {project_info.get('contact', '')}."
         ])
         
-        # Get macro indicators
-        gprh = gprh_trend_analysis()
-        vix = vix_trend_analysis()
-        move = move_trend_analysis()
+        # Get macro indicators (temporarily disabled due to xlrd dependency)
+        try:
+            gprh = gprh_trend_analysis()
+            vix = vix_trend_analysis()
+            move = move_trend_analysis()
+        except Exception as e:
+            print(f"⚠️ Macro analysis disabled: {str(e)}")
+            gprh = {'traffic_light': 'Unknown'}
+            vix = {'traffic_light': 'Unknown'}
+            move = {'traffic_light': 'Unknown'}
         
         system_prompt = f"""
         {greeting} I'm your AI financial forecasting assistant! I can help you with:
         
         📊 **Financial Forecasting**: Just tell me your ARR and net new ARR, and I'll predict your growth
+        🌟 **Enhanced Mode**: Add sector, country, currency for better predictions (e.g., "ARR $2.1M, net new ARR $320K, sector: SaaS, country: United States")
         📈 **SaaS Metrics Analysis**: Ask about Magic Number, Burn Multiple, Rule of 40, etc.
         📋 **CSV Analysis**: Upload your financial data for detailed analysis
         🌍 **Market Insights**: Get current macro indicators (GPRH: {gprh['traffic_light']}, VIX: {vix['traffic_light']}, MOVE: {move['traffic_light']})
@@ -547,6 +587,7 @@ def chat_endpoint(request: ChatRequest):
         
         How can I help you today? You can:
         - Say "My ARR is $2.1M and net new ARR is $320K" for a forecast
+        - Add context: "ARR $2.1M, net new ARR $320K, sector: Data & Analytics, country: United States"
         - Ask "What is Magic Number?" for metric explanations
         - Ask about market conditions or macro trends
         - Or just chat naturally!
@@ -589,7 +630,7 @@ def guided_forecast(request: EnhancedGuidedInputRequest):
         }
         
         # Infer secondary metrics using the guided system (exactly as in working version)
-        inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
+        inferred_metrics = guided_system._infer_secondary_metrics(primary_inputs['cARR'], primary_inputs['Net New ARR'], primary_inputs['ARR YoY Growth (in %)'])
         
         # Apply enhanced mode overrides if enabled
         if request.enhanced_mode:

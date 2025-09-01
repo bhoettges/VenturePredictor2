@@ -1,108 +1,166 @@
 #!/usr/bin/env python3
 """
-Test our financial forecasting model with real 2024 data.
+Test the API locally with real test data from test_company_2024.csv
 """
 
-from enhanced_prediction import EnhancedFinancialPredictor
+import requests
+import json
+import pandas as pd
 
-def test_with_real_data():
-    """Test the model with the user's real 2024 Q4 data."""
+# Local API URL
+BASE_URL = "http://localhost:8000"
+
+def test_with_real_csv_data():
+    """Test the /predict_csv endpoint with the real test data"""
+    print("🧪 Testing /predict_csv with real test data...")
     
-    print("🎯 TESTING WITH REAL 2024 DATA")
-    print("=" * 50)
-    
-    # Extract key metrics from Q4 2024 data
-    current_arr = 2100000  # ARR_End_of_Quarter Q4 2024
-    net_new_arr = 320000   # Quarterly_Net_New_ARR Q4 2024
-    growth_rate = (net_new_arr / (current_arr - net_new_arr)) * 100  # Calculate YoY growth
-    
-    print(f"📊 REAL DATA FROM Q4 2024:")
-    print(f"  Current ARR: ${current_arr:,.0f}")
-    print(f"  Net New ARR: ${net_new_arr:,.0f}")
-    print(f"  Calculated Growth Rate: {growth_rate:.1f}%")
-    print(f"  Headcount: 38 employees")
-    print(f"  Gross Margin: 82%")
-    
-    # Initialize the enhanced predictor
-    predictor = EnhancedFinancialPredictor()
-    
-    # Create input data manually
-    from guided_input_system import GuidedInputSystem
-    guided_system = GuidedInputSystem()
-    guided_system.initialize_from_training_data()
-    
-    # Build primary inputs
-    primary_inputs = {
-        'cARR': current_arr,
-        'Net New ARR': net_new_arr,
-        'ARR YoY Growth (in %)': growth_rate,
-        'Quarter Num': 1
-    }
-    
-    # Infer secondary metrics
-    inferred_metrics = guided_system.infer_secondary_metrics(primary_inputs)
-    
-    # Override with actual known values
-    inferred_metrics['Headcount (HC)'] = 38  # Actual headcount
-    inferred_metrics['Gross Margin (in %)'] = 82  # Actual gross margin
-    inferred_metrics['id_company'] = 'Test Company 2024'
-    inferred_metrics['Financial Quarter'] = 'FY24 Q4'
-    
-    # Create forecast-ready DataFrame
-    forecast_df = guided_system.create_forecast_input(inferred_metrics)
-    
-    # Try to make prediction with trained model
     try:
-        from financial_prediction import load_trained_model, predict_future_arr
-        print("🔍 Loading trained model...")
-        trained_model = load_trained_model('lightgbm_financial_model.pkl')
-        if trained_model:
-            print("🔍 Making prediction with trained model...")
-            forecast_results = predict_future_arr(trained_model, forecast_df)
-            model_used = "Trained Model"
-            forecast_success = True
-            print("✅ Trained model prediction successful!")
-        else:
-            raise Exception("No trained model available")
-    except Exception as e:
-        print(f"❌ Trained model prediction failed: {str(e)}")
-        print("📊 Generating fallback forecast using industry benchmarks...")
-        # Use fallback calculation
-        forecast_results = predictor._generate_fallback_forecast(inferred_metrics)
-        model_used = "Fallback Calculation"
-        forecast_success = False
-    
-    # Generate insights
-    insights = predictor._generate_insights(inferred_metrics, forecast_results)
-    
-    # Display results
-    print(f"\n🔮 FORECAST FOR 2025:")
-    print("=" * 50)
-    
-    if not forecast_results.empty:
-        print(f"{'Quarter':<12} {'YoY Growth':<12} {'Absolute ARR':<15}")
-        print("-" * 50)
+        # Read the CSV file
+        df = pd.read_csv('test_company_2024.csv')
+        print(f"📊 Loaded CSV with {len(df)} rows")
+        print(f"📊 Columns: {list(df.columns)}")
+        print(f"📊 Latest data: ARR=${df['ARR_End_of_Quarter'].iloc[-1]:,.0f}, Net New ARR=${df['Quarterly_Net_New_ARR'].iloc[-1]:,.0f}")
         
-        for _, row in forecast_results.iterrows():
-            quarter = row['Future Quarter']
-            growth = row['Predicted YoY Growth (%)']
-            arr = row['Predicted Absolute cARR (€)']
-            print(f"{quarter:<12} {growth:>8.1f}%    ${arr:>12,.0f}")
+        # Test the CSV endpoint
+        with open('test_company_2024.csv', 'rb') as f:
+            files = {'file': ('test_company_2024.csv', f, 'text/csv')}
+            response = requests.post(f"{BASE_URL}/predict_csv", files=files)
+        
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print("✅ CSV PREDICTION SUCCESS!")
+            print(f"Company: {result.get('company_name')}")
+            print(f"Model Used: {result.get('model_used')}")
+            print(f"Forecast Success: {result.get('forecast_success')}")
+            
+            if 'forecast_results' in result:
+                print("\n📊 Forecast Results:")
+                for i, forecast in enumerate(result['forecast_results']):
+                    print(f"  {forecast.get('Future Quarter', 'Q' + str(i+1))}: {forecast.get('Predicted YoY Growth (%)', 'N/A'):.1f}% growth")
+                    if 'ARR_Realistic' in forecast:
+                        print(f"    Expected ARR: ${forecast.get('ARR_Realistic', 0):,.0f}")
+            
+            return True
+        else:
+            print("❌ CSV PREDICTION FAILED!")
+            print(f"Error: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
+        return False
+
+def test_guided_forecast_with_latest_data():
+    """Test the /guided_forecast endpoint with the latest data from CSV"""
+    print("\n🧪 Testing /guided_forecast with latest data...")
     
-    print(f"\n💡 INSIGHTS:")
-    print(f"  Company Stage: {insights['size_category']}")
-    print(f"  {insights['size_insight']}")
-    print(f"  Growth Analysis: {insights['growth_insight']}")
-    print(f"  Efficiency: {insights['efficiency_insight']}")
+    try:
+        # Read the CSV and get latest data
+        df = pd.read_csv('test_company_2024.csv')
+        latest_row = df.iloc[-1]
+        
+        current_arr = int(latest_row['ARR_End_of_Quarter'])
+        net_new_arr = int(latest_row['Quarterly_Net_New_ARR'])
+        
+        print(f"📊 Using latest data: ARR=${current_arr:,.0f}, Net New ARR=${net_new_arr:,.0f}")
+        
+        # Test data for guided forecast
+        test_data = {
+            "current_arr": current_arr,
+            "net_new_arr": net_new_arr,
+            "enhanced_mode": True,
+            "sector": "Data & Analytics",
+            "country": "United States",
+            "currency": "USD"
+        }
+        
+        response = requests.post(f"{BASE_URL}/guided_forecast", json=test_data)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print("✅ GUIDED FORECAST SUCCESS!")
+            print(f"Company: {result.get('company_name')}")
+            print(f"Model Used: {result.get('model_used')}")
+            print(f"Forecast Success: {result.get('forecast_success')}")
+            
+            if 'forecast_results' in result:
+                print("\n📊 Forecast Results:")
+                for i, forecast in enumerate(result['forecast_results']):
+                    print(f"  {forecast.get('Future Quarter', 'Q' + str(i+1))}: {forecast.get('Predicted YoY Growth (%)', 'N/A'):.1f}% growth")
+                    if 'ARR_Realistic' in forecast:
+                        print(f"    Expected ARR: ${forecast.get('ARR_Realistic', 0):,.0f}")
+            
+            return True
+        else:
+            print("❌ GUIDED FORECAST FAILED!")
+            print(f"Error: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
+        return False
+
+def test_chat_with_real_data():
+    """Test the chat endpoint with real data"""
+    print("\n🧪 Testing /chat with real data...")
     
-    if 'forecast_insight' in insights:
-        print(f"  Forecast Trend: {insights['forecast_insight']}")
-    
-    print(f"\n🔧 TECHNICAL DETAILS:")
-    print(f"  Model Used: {model_used}")
-    print(f"  Forecast Success: {'✅ Yes' if forecast_success else '⚠️ Fallback'}")
-    
-    return forecast_results
+    try:
+        # Read the CSV and get latest data
+        df = pd.read_csv('test_company_2024.csv')
+        latest_row = df.iloc[-1]
+        
+        current_arr = int(latest_row['ARR_End_of_Quarter'])
+        net_new_arr = int(latest_row['Quarterly_Net_New_ARR'])
+        
+        # Format as natural language
+        current_arr_m = current_arr / 1000000
+        net_new_arr_k = net_new_arr / 1000
+        
+        test_data = {
+            "message": f"My ARR is ${current_arr_m:.1f}M and net new ARR is ${net_new_arr_k:.0f}K, can you forecast my growth?",
+            "name": "Test User"
+        }
+        
+        response = requests.post(f"{BASE_URL}/chat", json=test_data)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print("✅ CHAT SUCCESS!")
+            print(f"Response: {result.get('response', '')[:200]}...")
+            return True
+        else:
+            print("❌ CHAT FAILED!")
+            print(f"Error: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
+        return False
 
 if __name__ == "__main__":
-    results = test_with_real_data()
+    print("🚀 Testing API with Real Test Data")
+    print("=" * 60)
+    
+    # Test CSV endpoint
+    csv_success = test_with_real_csv_data()
+    
+    # Test guided forecast
+    guided_success = test_guided_forecast_with_latest_data()
+    
+    # Test chat (might fail due to xlrd issue)
+    chat_success = test_chat_with_real_data()
+    
+    print("\n" + "=" * 60)
+    print("📊 TEST RESULTS SUMMARY:")
+    print(f"  CSV Prediction: {'✅ PASS' if csv_success else '❌ FAIL'}")
+    print(f"  Guided Forecast: {'✅ PASS' if guided_success else '❌ FAIL'}")
+    print(f"  Chat: {'✅ PASS' if chat_success else '❌ FAIL'}")
+    
+    if csv_success and guided_success:
+        print("\n🎉 CORE FUNCTIONALITY WORKING! Ready for deployment!")
+    else:
+        print("\n⚠️  Some issues found. Check the errors above.")
