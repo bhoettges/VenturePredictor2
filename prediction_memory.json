@@ -1,0 +1,62 @@
+[
+  {
+    "timestamp": "2025-09-02T23:26:39.597421",
+    "company_name": "Test Company",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 1000000.0,
+      "q2_arr": 1400000.0,
+      "q3_arr": 2000000.0,
+      "q4_arr": 2800000.0,
+      "headcount": 102,
+      "sector": "Data & Analytics",
+      "tier2_metrics": null
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 2305889.2472022814,
+        "pessimistic_arr": 2075300.3224820532,
+        "optimistic_arr": 2536478.1719225096,
+        "yoy_growth_percent": 130.58892472022814,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 3276059.8346994435,
+        "pessimistic_arr": 2948453.851229499,
+        "optimistic_arr": 3603665.818169388,
+        "yoy_growth_percent": 134.0042739071031,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 4638805.387337316,
+        "pessimistic_arr": 4174924.8486035843,
+        "optimistic_arr": 5102685.926071048,
+        "yoy_growth_percent": 131.94026936686578,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 6552220.410719002,
+        "pessimistic_arr": 5896998.3696471015,
+        "optimistic_arr": 7207442.451790903,
+        "yoy_growth_percent": 134.00787181139293,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "Test Company",
+      "current_arr": 2800000.0,
+      "predicted_final_arr": 6552220.410719002,
+      "total_growth_percent": 134.0078718113929,
+      "tier_used": "Tier 1 Only",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  }
+]

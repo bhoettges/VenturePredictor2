@@ -136,13 +136,16 @@ class EnhancedGuidedInputSystem:
         
         # Calculate growth rate
         if historical_arr and len(historical_arr) >= 4:
-            # Use actual historical data to calculate growth
+            # Use actual historical data to calculate YoY growth
             arr_yoy_growth = ((current_arr - historical_arr[0]) / historical_arr[0]) * 100
             print(f"📈 Calculated YoY growth from historical data: {arr_yoy_growth:.1f}%")
         else:
-            # Calculate from current quarter only
-            arr_yoy_growth = (net_new_arr / (current_arr - net_new_arr)) * 100 if (current_arr - net_new_arr) > 0 else 0
-            print(f"📈 Calculated YoY growth from current quarter: {arr_yoy_growth:.1f}%")
+            # Calculate quarterly growth rate and convert to YoY equivalent
+            quarterly_growth = net_new_arr / (current_arr - net_new_arr) if (current_arr - net_new_arr) > 0 else 0
+            # Convert quarterly growth to YoY growth: (1 + q)^4 - 1
+            yoy_growth = ((1 + quarterly_growth) ** 4 - 1) * 100
+            arr_yoy_growth = yoy_growth
+            print(f"📈 Quarterly growth: {quarterly_growth*100:.1f}% → YoY equivalent: {yoy_growth:.1f}%")
         
         # Infer secondary metrics
         inferred_metrics = self._infer_secondary_metrics(current_arr, net_new_arr, arr_yoy_growth)
@@ -190,25 +193,65 @@ class EnhancedGuidedInputSystem:
                 
                 quarters.append(quarter_data)
         else:
-            # Generate synthetic historical data
-            print("📊 Generating synthetic historical data...")
-            quarters = self._generate_synthetic_history(current_arr, arr_yoy_growth, inferred_metrics)
+            # Generate realistic historical data that shows the growth pattern
+            print("📊 Generating realistic historical data with growth pattern...")
+            quarters = self._generate_realistic_history(current_arr, net_new_arr, inferred_metrics)
         
         # Create DataFrame
         df = pd.DataFrame(quarters)
         
-        # Ensure all required columns
-        required_columns = [
-            'id_company', 'Financial Quarter', 'cARR', 'ARR YoY Growth (in %)',
-            'Revenue YoY Growth (in %)', 'Gross Margin (in %)', 'EBITDA',
-            'Cash Burn (OCF & ICF)', 'LTM Rule of 40% (ARR)', 'Sales & Marketing',
-            'Headcount (HC)', 'Customers (EoP)', 'Expansion & Upsell',
-            'Churn & Reduction', 'Quarter Num', 'Net New ARR'
+        # Ensure all required columns from the original training data
+        all_training_columns = [
+            'id', 'id_company', 'Currency', 'id_currency', 'Sector', 'id_sector', 
+            'Target Customer', 'id_target_customer', 'Country', 'id_country', 
+            'Deal Team', 'id_deal_team', 'Financial Quarter', 'End of Quarter', 
+            'Revenue Run Rate (RRR)', 'Net New ARR', 'cARR', 'ARR YoY Growth (in %)', 
+            'Revenue', 'LTM Revenue', 'Revenue as % of ARR', 'Revenue YoY Growth (in %)', 
+            'Subscription', 'Professional Services', 'Other Non-Recurring', 'COGS', 
+            'Gross Profit', 'Gross Margin (in %)', 'Operating Expenses', 
+            'Opex as % of Revenue', 'Opex YoY Growth (in %)', 'Sales & Marketing', 
+            'S&M as % of Revenue', 'S&M Expenses YoY Growth (in %)', 
+            'Research & Development', 'R&D as % of Revenue', 
+            'R&D Expenses YoY Growth (in %)', 'General & Administrative', 
+            'G&A as % of Revenue', 'G&A Expenses YoY Growth (in %)', 'EBITDA', 
+            'Depreciation and Amortization', 'EBIT', 'Interest Income', 
+            'Interest Expenses', 'Taxes', 'Other', 'Net Income', 
+            'Cash Burn (OCF & ICF)', 'Monthly Burn (Qtly. avg)', 
+            'Financing Cash Flow (FCF)', 'Ending cash', 'Cash Runway (Months)', 
+            'Total Current Assets (excluding Cash)', 'Total Current Liabilities', 
+            'Working Capital', 'Financial Debt', 'New ARR', 'Expansion & Upsell', 
+            'Churn & Reduction', 'Gross New ARR', 'GNARR YoY Growth (in %)', 
+            'Expansion & Upsell (in %)', 'Churn & Reduction (in %)', 
+            'Annualized $ Expansion & Upsell (in %)', 
+            'Annualized $ Churn & Reduction (in %)', 
+            'Expansion & Upsell % of Gross New ARR', 
+            'Annualized $ Net Expansion (in %)', 'Net Expansion TTM (in %)', 
+            'Quick Ratio', 'Quick Ratio TTM', 'LTM Capital Efficiency (ARR)', 
+            'LTM New Revenue/ Cash Burn', 'LTM GP / LTM Cash Burn', 
+            'LTM GP / LTM S&M', 'Capital Efficiency (NNARR/Cash Burn)', 
+            'LTM Rule of 40% (ARR)', 'LTM Rule of 40% (Rev)', 
+            'LTM Magic Number (ARR)', 'LTM Magic Number (Rev)', 
+            'ACV (EoP, Aggregate)', 'ACV YoY Growth (in %)', 
+            'New ARR / New Customers', 'New ARR / New Customers YoY Growth (in %)', 
+            'CAC Payback (months)', 'LTV/CAC (TTM)', 'LTV/CAC', 'CAC', 'LTV', 
+            'Customer Lifetime', 'New Customers', 'Churned Customers', 
+            'Customers (EoP)', 'Annualized Logo Churn (in %)', 'Headcount (HC)', 
+            'HC YoY Growth (in %)', 'Sales Reps', 'Sales Reps as % of HC', 
+            'Sales Reps YoY Growth (in %)', 'Research & Development HC', 
+            'R&D HC as % of HC', 'R&D HC YoY Growth (in %)', 
+            'General & Administrative HC', 'G&A as % of HC', 
+            'G&A YoY Growth (in %)', 'ARR / HC', 'ARR / HC.1', 'RRR / HC', 
+            'Opex Run Rate / HC', 'Cash Burn / HC', 'NNARR / Sales Reps', 
+            'EqV', 'TEV/ARR', 'TEV/ARR Growth Adj.', 'TEV/ARR (end of cash)', 
+            'TEV/LTM Revenue', 'TEV/LTM Revenue Growth Adj.', 
+            'TEV/LTM Revenue (end of cash)', 'Quarter Order', 'Quarter_old', 
+            'Date', 'Order', 'Quarter Num'
         ]
         
-        for col in required_columns:
+        # Add missing columns with appropriate defaults
+        for col in all_training_columns:
             if col not in df.columns:
-                df[col] = 0
+                df[col] = self._get_default_value(col, inferred_metrics)
         
         return df
     
@@ -302,10 +345,12 @@ class EnhancedGuidedInputSystem:
         
         return scaled_metrics
     
-    def _generate_synthetic_history(self, current_arr: float, growth_rate: float, base_metrics: Dict) -> List[Dict]:
+    def _generate_synthetic_history(self, current_arr: float, yoy_growth_rate: float, base_metrics: Dict) -> List[Dict]:
         """Generate synthetic historical data."""
         quarters = []
-        growth_decimal = growth_rate / 100
+        
+        # Convert YoY growth to quarterly growth for historical generation
+        quarterly_growth = ((1 + yoy_growth_rate/100) ** (1/4) - 1)
         
         # Generate 4 historical quarters
         for i in range(4):
@@ -313,16 +358,25 @@ class EnhancedGuidedInputSystem:
             year = 23 if quarter_num <= 4 else 24
             quarter_name = f'FY{year} Q{quarter_num}'
             
-            # Calculate historical ARR
+            # Calculate historical ARR using quarterly growth
             quarters_back = 4 - i
-            historical_arr = current_arr / ((1 + growth_decimal) ** quarters_back)
+            historical_arr = current_arr / ((1 + quarterly_growth) ** quarters_back)
             
             # Create quarter data
             quarter_data = base_metrics.copy()
             quarter_data['Financial Quarter'] = quarter_name
             quarter_data['Quarter Num'] = quarter_num
             quarter_data['cARR'] = historical_arr
-            quarter_data['Net New ARR'] = historical_arr * growth_decimal if quarter_num > 1 else 0
+            quarter_data['Net New ARR'] = historical_arr * quarterly_growth if quarter_num > 1 else 0
+            
+            # For YoY growth, calculate the actual YoY growth for each quarter
+            if quarter_num == 1:
+                # Q1: compare to Q1 of previous year (synthetic)
+                prev_year_q1 = historical_arr / ((1 + quarterly_growth) ** 4)
+                quarter_data['ARR YoY Growth (in %)'] = ((historical_arr - prev_year_q1) / prev_year_q1) * 100
+            else:
+                # For other quarters, use a scaled version of the YoY growth
+                quarter_data['ARR YoY Growth (in %)'] = yoy_growth_rate * (0.8 + 0.2 * (quarter_num / 4))
             
             # Scale other metrics
             scale_factor = historical_arr / current_arr
@@ -337,6 +391,294 @@ class EnhancedGuidedInputSystem:
         quarters.append(current_quarter)
         
         return quarters
+    
+    def _generate_realistic_history(self, current_arr: float, net_new_arr: float, base_metrics: Dict) -> List[Dict]:
+        """Generate realistic historical data that shows the actual growth pattern."""
+        quarters = []
+        
+        # Calculate the quarterly growth rate from current data
+        quarterly_growth = net_new_arr / (current_arr - net_new_arr) if (current_arr - net_new_arr) > 0 else 0
+        print(f"📈 Detected quarterly growth rate: {quarterly_growth*100:.1f}%")
+        
+        # Generate 4 historical quarters showing this growth pattern
+        for i in range(4):
+            quarter_num = i + 1
+            year = 23 if quarter_num <= 4 else 24
+            quarter_name = f'FY{year} Q{quarter_num}'
+            
+            # Calculate historical ARR using the detected growth rate
+            quarters_back = 4 - i
+            historical_arr = current_arr / ((1 + quarterly_growth) ** quarters_back)
+            
+            # Create quarter data
+            quarter_data = base_metrics.copy()
+            quarter_data['Financial Quarter'] = quarter_name
+            quarter_data['Quarter Num'] = quarter_num
+            quarter_data['cARR'] = historical_arr
+            
+            # Calculate Net New ARR for this quarter
+            if quarter_num == 1:
+                quarter_data['Net New ARR'] = 0  # First quarter
+            else:
+                prev_arr = current_arr / ((1 + quarterly_growth) ** (quarters_back + 1))
+                quarter_data['Net New ARR'] = historical_arr - prev_arr
+            
+            # Scale other metrics proportionally
+            scale_factor = historical_arr / current_arr
+            quarter_data = self._scale_metrics(quarter_data, scale_factor)
+            
+            quarters.append(quarter_data)
+        
+        # Add current quarter
+        current_quarter = base_metrics.copy()
+        current_quarter['Financial Quarter'] = 'FY24 Q4'
+        current_quarter['Quarter Num'] = 4
+        quarters.append(current_quarter)
+        
+        return quarters
+    
+    def _get_default_value(self, column_name: str, inferred_metrics: Dict) -> float:
+        """Get intelligent default values for missing columns based on the column name and inferred metrics."""
+        
+        # Get base metrics
+        carr = inferred_metrics.get('cARR', 1000000)
+        net_new_arr = inferred_metrics.get('Net New ARR', 100000)
+        arr_yoy_growth = inferred_metrics.get('ARR YoY Growth (in %)', 20)
+        headcount = inferred_metrics.get('Headcount (HC)', 50)
+        sales_marketing = inferred_metrics.get('Sales & Marketing', 200000)
+        gross_margin = inferred_metrics.get('Gross Margin (in %)', 75)
+        
+        # ID and categorical features
+        if column_name in ['id', 'id_company']:
+            return 99999  # Unique ID for user company
+        elif column_name in ['Currency', 'id_currency']:
+            return 1  # USD
+        elif column_name in ['Sector', 'id_sector']:
+            return 1  # Technology
+        elif column_name in ['Target Customer', 'id_target_customer']:
+            return 1  # Enterprise
+        elif column_name in ['Country', 'id_country']:
+            return 1  # United States
+        elif column_name in ['Deal Team', 'id_deal_team']:
+            return 1  # Default team
+        
+        # Time-based features
+        elif column_name in ['Financial Quarter', 'End of Quarter']:
+            return 'FY24 Q4'
+        elif column_name in ['Quarter Order', 'Quarter_old', 'Date', 'Order']:
+            return 1
+        
+        # Revenue and ARR related
+        elif column_name == 'Revenue Run Rate (RRR)':
+            return carr * 1.1  # RRR slightly higher than ARR
+        elif column_name == 'Revenue':
+            return carr * 0.9  # Revenue typically 90% of ARR
+        elif column_name == 'LTM Revenue':
+            return carr * 3.6  # LTM = 4 quarters * 0.9
+        elif column_name == 'Revenue as % of ARR':
+            return 90.0
+        elif column_name == 'Subscription':
+            return carr * 0.8  # 80% subscription revenue
+        elif column_name == 'Professional Services':
+            return carr * 0.1  # 10% professional services
+        elif column_name == 'Other Non-Recurring':
+            return carr * 0.05  # 5% other revenue
+        
+        # Cost and margin related
+        elif column_name == 'COGS':
+            return carr * (1 - gross_margin/100)  # COGS = Revenue * (1 - Gross Margin)
+        elif column_name == 'Gross Profit':
+            return carr * (gross_margin/100)  # Gross Profit = Revenue * Gross Margin
+        elif column_name == 'Operating Expenses':
+            return carr * 0.6  # 60% of revenue
+        elif column_name == 'Opex as % of Revenue':
+            return 60.0
+        elif column_name == 'Opex YoY Growth (in %)':
+            return arr_yoy_growth * 0.8  # Opex grows slower than revenue
+        
+        # Sales & Marketing
+        elif column_name == 'S&M as % of Revenue':
+            return (sales_marketing / carr) * 100
+        elif column_name == 'S&M Expenses YoY Growth (in %)':
+            return arr_yoy_growth * 0.9
+        
+        # R&D
+        elif column_name == 'Research & Development':
+            return carr * 0.2  # 20% of revenue
+        elif column_name == 'R&D as % of Revenue':
+            return 20.0
+        elif column_name == 'R&D Expenses YoY Growth (in %)':
+            return arr_yoy_growth * 0.8
+        elif column_name == 'Research & Development HC':
+            return int(headcount * 0.3)  # 30% of headcount
+        elif column_name == 'R&D HC as % of HC':
+            return 30.0
+        elif column_name == 'R&D HC YoY Growth (in %)':
+            return arr_yoy_growth * 0.7
+        
+        # G&A
+        elif column_name == 'General & Administrative':
+            return carr * 0.15  # 15% of revenue
+        elif column_name == 'G&A as % of Revenue':
+            return 15.0
+        elif column_name == 'G&A Expenses YoY Growth (in %)':
+            return arr_yoy_growth * 0.6
+        elif column_name == 'General & Administrative HC':
+            return int(headcount * 0.2)  # 20% of headcount
+        elif column_name == 'G&A as % of HC':
+            return 20.0
+        elif column_name == 'G&A YoY Growth (in %)':
+            return arr_yoy_growth * 0.5
+        
+        # Profitability
+        elif column_name == 'EBITDA':
+            return carr * 0.2  # 20% EBITDA margin
+        elif column_name == 'Depreciation and Amortization':
+            return carr * 0.05  # 5% of revenue
+        elif column_name == 'EBIT':
+            return carr * 0.15  # 15% EBIT margin
+        elif column_name in ['Interest Income', 'Interest Expenses']:
+            return carr * 0.01  # 1% of revenue
+        elif column_name == 'Taxes':
+            return carr * 0.03  # 3% tax rate
+        elif column_name == 'Other':
+            return carr * 0.02  # 2% other income/expenses
+        elif column_name == 'Net Income':
+            return carr * 0.12  # 12% net margin
+        
+        # Cash flow
+        elif column_name == 'Monthly Burn (Qtly. avg)':
+            return abs(inferred_metrics.get('Cash Burn (OCF & ICF)', -100000)) / 3
+        elif column_name == 'Financing Cash Flow (FCF)':
+            return carr * 0.1  # 10% of revenue
+        elif column_name == 'Ending cash':
+            return carr * 0.5  # 6 months of revenue
+        elif column_name == 'Cash Runway (Months)':
+            return 18.0  # 18 months runway
+        
+        # Balance sheet
+        elif column_name == 'Total Current Assets (excluding Cash)':
+            return carr * 0.3  # 30% of revenue
+        elif column_name == 'Total Current Liabilities':
+            return carr * 0.2  # 20% of revenue
+        elif column_name == 'Working Capital':
+            return carr * 0.1  # 10% of revenue
+        elif column_name == 'Financial Debt':
+            return carr * 0.1  # 10% of revenue
+        
+        # ARR metrics
+        elif column_name == 'New ARR':
+            return net_new_arr
+        elif column_name == 'Gross New ARR':
+            return net_new_arr * 1.2  # 20% higher than net new
+        elif column_name == 'GNARR YoY Growth (in %)':
+            return arr_yoy_growth * 1.1
+        
+        # Customer metrics
+        elif column_name == 'New Customers':
+            return int(headcount * 0.1)  # 10% of headcount
+        elif column_name == 'Churned Customers':
+            return int(headcount * 0.02)  # 2% churn
+        elif column_name == 'New ARR / New Customers':
+            return net_new_arr / max(1, int(headcount * 0.1))
+        elif column_name == 'New ARR / New Customers YoY Growth (in %)':
+            return arr_yoy_growth * 0.9
+        elif column_name == 'Annualized Logo Churn (in %)':
+            return 5.0  # 5% annual churn
+        
+        # Headcount metrics
+        elif column_name == 'HC YoY Growth (in %)':
+            return arr_yoy_growth * 0.6  # Headcount grows slower than revenue
+        elif column_name == 'Sales Reps':
+            return int(headcount * 0.2)  # 20% sales reps
+        elif column_name == 'Sales Reps as % of HC':
+            return 20.0
+        elif column_name == 'Sales Reps YoY Growth (in %)':
+            return arr_yoy_growth * 0.8
+        
+        # Efficiency ratios
+        elif column_name in ['ARR / HC', 'ARR / HC.1']:
+            return carr / max(1, headcount)
+        elif column_name == 'RRR / HC':
+            return (carr * 1.1) / max(1, headcount)
+        elif column_name == 'Opex Run Rate / HC':
+            return (carr * 0.6) / max(1, headcount)
+        elif column_name == 'Cash Burn / HC':
+            return abs(inferred_metrics.get('Cash Burn (OCF & ICF)', -100000)) / max(1, headcount)
+        elif column_name == 'NNARR / Sales Reps':
+            return net_new_arr / max(1, int(headcount * 0.2))
+        
+        # Valuation metrics
+        elif column_name == 'EqV':
+            return carr * 8  # 8x ARR valuation
+        elif column_name == 'TEV/ARR':
+            return 8.0
+        elif column_name == 'TEV/ARR Growth Adj.':
+            return 7.0
+        elif column_name == 'TEV/ARR (end of cash)':
+            return 6.0
+        elif column_name == 'TEV/LTM Revenue':
+            return 7.0
+        elif column_name == 'TEV/LTM Revenue Growth Adj.':
+            return 6.0
+        elif column_name == 'TEV/LTM Revenue (end of cash)':
+            return 5.0
+        
+        # Customer metrics
+        elif column_name == 'ACV (EoP, Aggregate)':
+            return carr * 0.8  # 80% of ARR
+        elif column_name == 'ACV YoY Growth (in %)':
+            return arr_yoy_growth * 0.9
+        elif column_name == 'CAC':
+            return sales_marketing / max(1, int(headcount * 0.1))
+        elif column_name == 'LTV':
+            return (carr * 0.8) * 3  # 3x ACV LTV
+        elif column_name == 'Customer Lifetime':
+            return 36.0  # 36 months
+        elif column_name == 'CAC Payback (months)':
+            return 12.0  # 12 months
+        elif column_name in ['LTV/CAC', 'LTV/CAC (TTM)']:
+            return 3.0  # 3x LTV/CAC
+        
+        # Expansion and churn metrics
+        elif column_name == 'Expansion & Upsell (in %)':
+            return 20.0  # 20% expansion
+        elif column_name == 'Churn & Reduction (in %)':
+            return -5.0  # -5% churn
+        elif column_name == 'Annualized $ Expansion & Upsell (in %)':
+            return 20.0
+        elif column_name == 'Annualized $ Churn & Reduction (in %)':
+            return -5.0
+        elif column_name == 'Expansion & Upsell % of Gross New ARR':
+            return 25.0
+        elif column_name == 'Annualized $ Net Expansion (in %)':
+            return 15.0
+        elif column_name == 'Net Expansion TTM (in %)':
+            return 15.0
+        
+        # Financial ratios
+        elif column_name in ['Quick Ratio', 'Quick Ratio TTM']:
+            return 2.0  # 2x quick ratio
+        elif column_name == 'LTM Capital Efficiency (ARR)':
+            return 0.8  # 80% efficiency
+        elif column_name == 'LTM New Revenue/ Cash Burn':
+            return 1.2  # 1.2x efficiency
+        elif column_name == 'LTM GP / LTM Cash Burn':
+            return 1.5  # 1.5x efficiency
+        elif column_name == 'LTM GP / LTM S&M':
+            return 2.0  # 2x efficiency
+        elif column_name == 'Capital Efficiency (NNARR/Cash Burn)':
+            return 0.8  # 80% efficiency
+        elif column_name == 'LTM Rule of 40% (Rev)':
+            return 35.0  # 35% rule of 40
+        elif column_name == 'LTM Magic Number (ARR)':
+            return 0.8  # 0.8 magic number
+        elif column_name == 'LTM Magic Number (Rev)':
+            return 0.7  # 0.7 magic number
+        
+        # Default fallback
+        else:
+            return 0.0
 
 # Example usage
 if __name__ == "__main__":

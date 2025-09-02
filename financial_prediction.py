@@ -136,204 +136,18 @@ def predict_future_arr(model_data, company_df):
     # Create feature matrix for prediction
     X_predict = pd.DataFrame(index=prediction_input_row.index)
     
-    # Smart imputation based on training data patterns
-    print("Step 1.5: Smart feature imputation...")
+    # Smart feature imputation (using enhanced_guided_input defaults)
+    print("Step 1.5: Using smart defaults from enhanced_guided_input...")
     
-    def _get_adaptive_defaults(prediction_input_row):
-        """
-        Get adaptive defaults based on user input characteristics and learned relationships from training data.
-        """
-        try:
-            # Load training data to learn relationships
-            training_df = pd.read_csv('202402_Copy.csv')
-            
-            # Calculate key metrics from training data
-            training_df['ARR_size_category'] = pd.cut(training_df['cARR'], 
-                                                   bins=[0, 1e6, 10e6, 100e6, np.inf],
-                                                   labels=['Small', 'Medium', 'Large', 'Enterprise'])
-            
-            training_df['growth_category'] = pd.cut(training_df['ARR YoY Growth (in %)'], 
-                                                 bins=[-np.inf, 0, 20, 50, 100, np.inf],
-                                                 labels=['Declining', 'Slow', 'Moderate', 'Fast', 'Hyper'])
-            
-            # Get user's ARR and growth characteristics
-            user_arr = prediction_input_row['cARR'].iloc[0] if 'cARR' in prediction_input_row.columns else 1000000
-            user_growth = prediction_input_row['ARR YoY Growth (in %)'].iloc[0] if 'ARR YoY Growth (in %)' in prediction_input_row.columns else 20
-            
-            # Determine user's size and growth categories
-            if user_arr < 1e6:
-                user_size_category = 'Small'
-            elif user_arr < 10e6:
-                user_size_category = 'Medium'
-            elif user_arr < 100e6:
-                user_size_category = 'Large'
-            else:
-                user_size_category = 'Enterprise'
-                
-            if user_growth < 0:
-                user_growth_category = 'Declining'
-            elif user_growth < 20:
-                user_growth_category = 'Slow'
-            elif user_growth < 50:
-                user_growth_category = 'Moderate'
-            elif user_growth < 100:
-                user_growth_category = 'Fast'
-            else:
-                user_growth_category = 'Hyper'
-            
-            # Calculate adaptive metrics based on size and growth
-            size_metrics = training_df[training_df['ARR_size_category'] == user_size_category].agg({
-                'Gross Margin (in %)': 'median',
-                'Net Profit/Loss Margin (in %)': 'median',
-                'Headcount (HC)': 'median',
-                'Customers (EoP)': 'median',
-                'Sales & Marketing': 'median',
-                'R&D': 'median',
-                'G&A': 'median',
-                'Cash Burn (OCF & ICF)': 'median',
-                'Expansion & Upsell': 'median',
-                'Churn & Reduction': 'median',
-                'Magic Number': 'median',
-                'Burn Multiple': 'median',
-                'ARR per Headcount': 'median'
-            }).fillna(method='ffill')
-            
-            growth_metrics = training_df[training_df['growth_category'] == user_growth_category].agg({
-                'Magic Number': 'median',
-                'Burn Multiple': 'median',
-                'ARR per Headcount': 'median',
-                'Sales & Marketing': 'median'
-            }).fillna(method='ffill')
-            
-            # Get most common categorical values from training data
-            categorical_defaults = {
-                'Currency': training_df['Currency'].mode().iloc[0] if len(training_df['Currency'].mode()) > 0 else 0,
-                'id_currency': training_df['id_currency'].mode().iloc[0] if len(training_df['id_currency'].mode()) > 0 else 0,
-                'Sector': training_df['Sector'].mode().iloc[0] if len(training_df['Sector'].mode()) > 0 else 0,
-                'id_sector': training_df['id_sector'].mode().iloc[0] if len(training_df['id_sector'].mode()) > 0 else 0,
-                'Target Customer': training_df['Target Customer'].mode().iloc[0] if len(training_df['Target Customer'].mode()) > 0 else 0,
-                'id_target_customer': training_df['id_target_customer'].mode().iloc[0] if len(training_df['id_target_customer'].mode()) > 0 else 0,
-                'Country': training_df['Country'].mode().iloc[0] if len(training_df['Country'].mode()) > 0 else 0,
-                'id_country': training_df['id_country'].mode().iloc[0] if len(training_df['id_country'].mode()) > 0 else 0,
-                'Deal Team': training_df['Deal Team'].mode().iloc[0] if len(training_df['Deal Team'].mode()) > 0 else 0,
-                'id_deal_team': training_df['id_deal_team'].mode().iloc[0] if len(training_df['id_deal_team'].mode()) > 0 else 0
-            }
-            
-            print(f"🔧 Categorical defaults from training data:")
-            print(f"  Sector: {categorical_defaults['Sector']} (most common)")
-            print(f"  Country: {categorical_defaults['Country']} (most common)")
-            print(f"  Currency: {categorical_defaults['Currency']} (most common)")
-            
-            # Combine size and growth metrics with weighted averages
-            adaptive_defaults = {
-                # Core financial metrics (adapted to user's size and growth)
-                'cARR': user_arr,
-                'ARR YoY Growth (in %)': user_growth,
-                'Revenue YoY Growth (in %)': user_growth * 0.8,  # Revenue typically grows slower than ARR
-                'Gross Margin (in %)': size_metrics.get('Gross Margin (in %)', 75),
-                'Net Profit/Loss Margin (in %)': size_metrics.get('Net Profit/Loss Margin (in %)', -10),
-                
-                # Headcount and operational metrics (scaled by ARR)
-                'Headcount (HC)': max(1, int(user_arr / size_metrics.get('ARR per Headcount', 100000))),
-                'Customers (EoP)': size_metrics.get('Customers (EoP)', 200),
-                'Sales & Marketing': (size_metrics.get('Sales & Marketing', 2000000) + growth_metrics.get('Sales & Marketing', 2000000)) / 2,
-                'R&D': size_metrics.get('R&D', 1500000),
-                'G&A': size_metrics.get('G&A', 1000000),
-                
-                # Cash flow metrics (adapted to growth rate)
-                'Cash Burn (OCF & ICF)': size_metrics.get('Cash Burn (OCF & ICF)', -1000000),
-                'Net Cash Flow': size_metrics.get('Cash Burn (OCF & ICF)', -1000000) * 0.8,
-                
-                # Customer metrics (scaled by ARR)
-                'Expansion & Upsell': size_metrics.get('Expansion & Upsell', 500000) * (user_arr / 1000000),
-                'Churn & Reduction': size_metrics.get('Churn & Reduction', -100000) * (user_arr / 1000000),
-                
-                # Efficiency metrics (combined size and growth)
-                'Magic Number': (size_metrics.get('Magic Number', 0.8) + growth_metrics.get('Magic Number', 0.8)) / 2,
-                'Burn Multiple': (size_metrics.get('Burn Multiple', 1.2) + growth_metrics.get('Burn Multiple', 1.2)) / 2,
-                'ARR per Headcount': (size_metrics.get('ARR per Headcount', 100000) + growth_metrics.get('ARR per Headcount', 100000)) / 2,
-                
-                # Time-based features
-                'Quarter Num': prediction_input_row['Quarter Num'].iloc[0] if 'Quarter Num' in prediction_input_row.columns else 1,
-                'time_idx': prediction_input_row['time_idx'].iloc[0] if 'time_idx' in prediction_input_row.columns else 1,
-                
-                # Categorical features (use most common values from training data)
-                **categorical_defaults
-            }
-            
-            print(f"🔧 Adaptive defaults for {user_size_category} company with {user_growth_category} growth:")
-            print(f"  ARR: ${user_arr:,.0f}")
-            print(f"  Growth: {user_growth:.1f}%")
-            print(f"  Headcount: {adaptive_defaults['Headcount (HC)']}")
-            print(f"  Magic Number: {adaptive_defaults['Magic Number']:.2f}")
-            print(f"  Burn Multiple: {adaptive_defaults['Burn Multiple']:.2f}")
-            
-            return adaptive_defaults
-            
-        except Exception as e:
-            print(f"⚠️ Warning: Could not load training data for adaptive defaults: {e}")
-            print("📊 Using conservative fallback defaults...")
-            
-            # Fallback to conservative defaults based on user's ARR
-            user_arr = prediction_input_row['cARR'].iloc[0] if 'cARR' in prediction_input_row.columns else 1000000
-            
-            return {
-                # Core financial metrics
-                'cARR': user_arr,
-                'ARR YoY Growth (in %)': 20,  # Conservative 20% growth
-                'Revenue YoY Growth (in %)': 16,  # 80% of ARR growth
-                'Gross Margin (in %)': 75,
-                'Net Profit/Loss Margin (in %)': -15,
-                
-                # Headcount and operational metrics (scaled by ARR)
-                'Headcount (HC)': max(1, int(user_arr / 150000)),  # Conservative ARR per headcount
-                'Customers (EoP)': max(1, int(user_arr / 5000)),  # Conservative customer count
-                'Sales & Marketing': user_arr * 0.4,  # 40% of ARR
-                'R&D': user_arr * 0.25,  # 25% of ARR
-                'G&A': user_arr * 0.15,  # 15% of ARR
-                
-                # Cash flow metrics
-                'Cash Burn (OCF & ICF)': -user_arr * 0.3,  # 30% burn rate
-                'Net Cash Flow': -user_arr * 0.25,  # 25% net burn
-                
-                # Customer metrics
-                'Expansion & Upsell': user_arr * 0.1,  # 10% expansion
-                'Churn & Reduction': -user_arr * 0.05,  # 5% churn
-                
-                # Efficiency metrics
-                'Magic Number': 0.6,  # Conservative magic number
-                'Burn Multiple': 1.5,  # Conservative burn multiple
-                'ARR per Headcount': 150000,  # Conservative ARR per headcount
-                
-                # Time-based features
-                'Quarter Num': prediction_input_row['Quarter Num'].iloc[0] if 'Quarter Num' in prediction_input_row.columns else 1,
-                'time_idx': prediction_input_row['time_idx'].iloc[0] if 'time_idx' in prediction_input_row.columns else 1,
-                
-                # Categorical features (use 0 for unknown/neutral)
-                'Currency': 0,
-                'id_currency': 0,
-                'Sector': 0,
-                'id_sector': 0,
-                'Target Customer': 0,
-                'id_target_customer': 0,
-                'Country': 0,
-                'id_country': 0,
-                'Deal Team': 0,
-                'id_deal_team': 0
-            }
-
-    adaptive_defaults = _get_adaptive_defaults(prediction_input_row)
-    
+    # The enhanced_guided_input system already provides smart defaults
+    # We just need to ensure all required features are present
     for col in feature_cols:
         if col in prediction_input_row.columns:
             X_predict[col] = prediction_input_row[col]
-        elif col in adaptive_defaults:
-            X_predict[col] = adaptive_defaults[col]
-            print(f"📊 Using adaptive default for '{col}': {adaptive_defaults[col]}")
         else:
-            # For unknown features, use 0 but log it
+            # Use 0 for any missing features (enhanced_guided_input should have provided all needed features)
             X_predict[col] = 0
-            print(f"⚠️  Warning: Unknown feature '{col}', using 0")
+            print(f"⚠️  Warning: Missing feature '{col}', using 0")
 
     # Fill any remaining NaNs with 0
     X_predict = X_predict.fillna(0)
@@ -342,43 +156,99 @@ def predict_future_arr(model_data, company_df):
     print(f"🔍 Debug: Sample input values: {X_predict.iloc[0, :5].to_dict()}")
 
     print("Step 2: Making predictions with the trained model...")
+    
+    # Check if this is an extreme growth company that needs fallback
+    user_arr = prediction_input_row['cARR'].iloc[0] if 'cARR' in prediction_input_row.columns else 1000000
+    user_growth = prediction_input_row['ARR YoY Growth (in %)'].iloc[0] if 'ARR YoY Growth (in %)' in prediction_input_row.columns else 20
+    
+    # Use the trained model directly (no more fallback needed with corrected data)
     predicted_growth_rates = model_pipeline.predict(X_predict)[0]
-    
-    print(f"🔍 Debug: Raw predictions from model = {predicted_growth_rates}")
-    
-    # The model should output growth rates in the same scale it was trained on
-    # Let's see what the actual values are without arbitrary scaling
-    print(f"🔍 Debug: Model predictions (no scaling) = {predicted_growth_rates}")
+    print(f"🔍 Debug: Model predictions = {predicted_growth_rates}")
 
-    # --- Translate growth rates into absolute ARR values ---
-    print("Step 3: Calculating future absolute ARR...")
+    # --- Translate YoY growth rates into quarterly ARR progression ---
+    print("Step 3: Calculating quarterly ARR progression using proper YoY logic...")
     last_known_q = processed_df.iloc[-1]
+    current_arr = last_known_q['cARR']
     future_quarters = ["FY26 Q1", "FY26 Q2", "FY26 Q3", "FY26 Q4"]
     forecast = []
 
+    print(f"🔍 Starting ARR: ${current_arr:,.0f}")
+    
+    # Use the historical data to create proper YoY baselines
+    # We have 5 quarters of data (4 historical + 1 current)
+    historical_arrs = processed_df['cARR'].tolist()
+    
     for i in range(4):
-        # Get the corresponding quarter from the previous year for YoY calculation
-        last_year_quarter_data = processed_df[processed_df['time_idx'] == last_known_q['time_idx'] - 3 + i]
-        if len(last_year_quarter_data) > 0:
-            last_year_arr = last_year_quarter_data['cARR'].iloc[0]
+        predicted_yoy_growth = predicted_growth_rates[i]
+        
+        # For YoY growth, we need the ARR from the same quarter last year
+        # Since we're predicting Q1-Q4 of 2026, we need Q1-Q4 of 2025 as baselines
+        # We can use the historical data we generated as a proxy
+        
+        if i < len(historical_arrs):
+            # Use historical data as baseline for YoY calculation
+            baseline_arr = historical_arrs[i]  # Same quarter from historical data
+            predicted_arr = baseline_arr * (1 + predicted_yoy_growth/100)
+            
+            # Calculate quarterly growth from previous quarter
+            if i == 0:
+                prev_arr = current_arr
+            else:
+                prev_arr = forecast[i-1]['Predicted ARR ($)']
+            
+            quarterly_growth_pct = ((predicted_arr - prev_arr) / prev_arr) * 100
+            
+            print(f"🔍 Q{i+1} Debug: YoY Growth = {predicted_yoy_growth:.1f}% | Baseline = ${baseline_arr:,.0f} | Predicted ARR = ${predicted_arr:,.0f} | QoQ Growth = {quarterly_growth_pct:.1f}%")
         else:
-            # If we don't have the exact quarter, use the last known ARR
-            last_year_arr = last_known_q['cARR']
-
-        # Calculate predicted ARR
-        predicted_growth = predicted_growth_rates[i]
+            # Fallback: use current ARR as baseline
+            predicted_arr = current_arr * (1 + predicted_yoy_growth/100)
+            quarterly_growth_pct = predicted_yoy_growth / 4  # Rough approximation
+            print(f"🔍 Q{i+1} Debug: YoY Growth = {predicted_yoy_growth:.1f}% | Using current ARR as baseline | Predicted ARR = ${predicted_arr:,.0f}")
         
-        # Debug: Print the raw prediction and calculation
-        print(f"🔍 Q{i+1} Debug: Raw prediction = {predicted_growth:.3f}, Last year ARR = {last_year_arr:,.0f}")
+        # Calculate uncertainty bounds (±10%)
+        uncertainty_factor = 0.10
+        lower_bound = predicted_arr * (1 - uncertainty_factor)
+        upper_bound = predicted_arr * (1 + uncertainty_factor)
         
-        predicted_arr = last_year_arr * (1 + predicted_growth)
         forecast.append({
             "Future Quarter": future_quarters[i],
-            "Predicted YoY Growth (%)": predicted_growth * 100,  # Keep as numeric for calculations
-            "Predicted Absolute cARR (€)": predicted_arr
+            "Predicted ARR ($)": predicted_arr,
+            "Lower Bound ($)": lower_bound,
+            "Upper Bound ($)": upper_bound,
+            "Quarterly Growth (%)": quarterly_growth_pct,
+            "YoY Growth (%)": predicted_yoy_growth
         })
+        
+        # Update current ARR for next iteration
+        current_arr = predicted_arr
 
     return pd.DataFrame(forecast)
+
+def _calculate_fallback_growth(current_arr, yoy_growth):
+    """
+    Calculate realistic growth rates for extreme growth companies using a fallback approach.
+    This is used when the model can't handle extreme growth rates (>100% YoY).
+    """
+    # Convert YoY growth to quarterly growth
+    quarterly_growth = ((1 + yoy_growth/100) ** (1/4) - 1) * 100
+    
+    # For extreme growth companies, we expect growth to moderate over time
+    # Start with high growth and gradually reduce it
+    growth_rates = []
+    
+    for i in range(4):
+        # Gradually reduce growth rate each quarter (growth companies typically slow down)
+        # Start at 80% of the quarterly rate, then reduce by 10% each quarter
+        quarter_growth = quarterly_growth * (0.8 - i * 0.1)
+        quarter_growth = max(quarter_growth, 5.0)  # Minimum 5% growth
+        growth_rates.append(quarter_growth)
+    
+    print(f"🔧 Fallback calculation:")
+    print(f"  YoY growth: {yoy_growth:.1f}%")
+    print(f"  Quarterly equivalent: {quarterly_growth:.1f}%")
+    print(f"  Predicted quarterly rates: {[f'{g:.1f}%' for g in growth_rates]}")
+    
+    return growth_rates
 
 def create_sample_company_data():
     """
