@@ -9,7 +9,6 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from api.services.prediction import (
-    predict_raw_features, 
     handle_chat, 
     perform_guided_forecast,
     perform_tier_based_forecast
@@ -18,15 +17,15 @@ from api.models.schemas import FeatureInput, ChatRequest, EnhancedGuidedInputReq
 
 router = APIRouter()
 
-@router.post("/predict_raw")
-def predict_raw(data: FeatureInput):
-    try:
-        result = predict_raw_features(data)
-        return result
-    except ValueError as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Prediction failed: {str(e)}"})
+# @router.post("/predict_raw")
+# def predict_raw(data: FeatureInput):
+#     try:
+#         result = predict_raw_features(data)
+#         return result
+#     except ValueError as e:
+#         return JSONResponse(status_code=400, content={"error": str(e)})
+#     except Exception as e:
+#         return JSONResponse(status_code=500, content={"error": f"Prediction failed: {str(e)}"})
 
 # Old CSV endpoint removed - now using /predict_csv in tier_predictions.py
 
