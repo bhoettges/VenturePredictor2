@@ -8,7 +8,7 @@ project_root = Path(__file__).resolve().parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
-from api.routers import predictions, macro, system
+from api.routers import tier_predictions, macro, tier_system
 
 app = FastAPI()
 
@@ -22,9 +22,9 @@ app.add_middleware(
 )
 
 # --- Routers ---
-app.include_router(predictions.router)
+app.include_router(tier_predictions.router)
 app.include_router(macro.router)
-app.include_router(system.router)
+app.include_router(tier_system.router)
 
 print("🚀 Production-Ready Financial Forecasting API Initialized")
 print("Model Accuracy: R² = 0.7966 (79.66%)")
