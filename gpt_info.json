@@ -2,7 +2,7 @@
   "project_info": {
     "creator": "Balthasar Hoettges",
     "project_name": "Venture Prophet",
-    "purpose": "Forecast ARR YoY growth for VC companies",
+    "purpose": "Welcome to Venture Prophet! 🚀\n\nI'm your AI financial forecasting assistant, trained on 500+ VC-backed companies to predict ARR growth with 79.66% accuracy. I can help you with:\n\n• ARR growth predictions with confidence intervals\n• SaaS metrics analysis (Magic Number, Burn Multiple, Rule of 40)\n• Market insights and macro-economic trends\n• Financial forecasting guidance\n\nShare your company data or ask me anything about financial forecasting!",
     "contact": "balthasar@hoettges.io",
     "data_supplier": "DTCP (a venture capital company)"
   },
@@ -63,17 +63,13 @@
   },
   "data_description": {
     "features": [
-      "ARR YoY Growth (in %)",
-      "Revenue YoY Growth (in %)",
-      "Gross Margin (in %)",
-      "EBITDA",
-      "Cash Burn (OCF & ICF)",
-      "LTM Rule of 40% (ARR)",
-      "Quarter Num"
+      "Tier 1 (Required): Q1-Q4 ARR, Headcount, Sector",
+      "Tier 2 (Optional): Gross Margin, Sales & Marketing, Cash Burn, Churn Rate, Customers, Expansion Rate",
+      "Engineered Features: 152+ features including lag features, rolling windows, SaaS metrics"
     ],
     "time_period": "FY2018–FY2024",
-    "notes": "Enhanced with 152+ engineered features including lag features, rolling windows, SaaS metrics, and growth momentum indicators.",
-    "data_quality": "Comprehensive cleaning with nuanced imputation strategies and outlier handling"
+    "notes": "Enhanced tier-based input system with intelligent feature completion from 500+ VC-backed companies. System creates 152+ engineered features including lag features, rolling windows, SaaS-specific metrics (Magic Number, Burn Multiple, Rule of 40), growth momentum indicators, and company maturity classifications.",
+    "data_quality": "Comprehensive cleaning with nuanced imputation strategies, outlier handling, and intelligent feature completion using logarithmic similarity matching"
   },
   "limitations": [
     "Predictions are based on historical data and may not reflect future market conditions.",
@@ -124,6 +120,14 @@
     {
       "question": "How do I upload data?",
       "answer": "You can upload a CSV file using the /predict_csv endpoint, or use the tier-based system by providing just the essential metrics (ARR, headcount, sector) through the /tier_based_forecast endpoint."
+    },
+    {
+      "question": "What model is used?",
+      "answer": "Venture Prophet uses an Enhanced Tier-Based Prediction System with Intelligent Feature Completion. The core model is LightGBM (Gradient Boosted Trees) trained on 5,085+ records from 500+ VC-backed companies. The system operates in 3 stages: 1) Tier-based input (minimal required data), 2) Intelligent feature completion (inferring missing features from similar companies using logarithmic similarity matching), 3) LightGBM modeling with 152+ engineered features. This achieves 79.66% accuracy (R² = 0.7966) with ±10% confidence intervals on all predictions."
+    },
+    {
+      "question": "How does the 3-stage tier-based system work?",
+      "answer": "Our Enhanced Tier-Based Prediction System operates in 3 sophisticated stages:\n\n🎯 **Stage 1: Tier-Based Input**\n- Tier 1 (Required): Q1-Q4 ARR, Headcount, Sector\n- Tier 2 (Optional): Gross Margin, Sales & Marketing, Cash Burn, Churn Rate, Customers, Expansion Rate\n- Minimal user input required while maintaining prediction quality through intelligent defaults\n\n🧠 **Stage 2: Intelligent Feature Completion**\n- Company Profiling: Groups historical companies by ARR size and growth characteristics\n- Logarithmic Similarity Matching: Finds companies with similar ARR patterns using log-scale comparison\n- Weighted Median Inference: Uses median values from similar companies, weighted by similarity scores\n- Feature Engineering: Creates 152+ engineered features including lag features, rolling windows, and SaaS-specific metrics\n\n⚡ **Stage 3: LightGBM Modeling**\n- Algorithm: LightGBM (Gradient Boosted Trees) - excellent for tabular data and complex relationships\n- Training Data: 5,085+ records from 500+ VC-backed companies across multiple sectors\n- Features: 152 engineered features per prediction\n- Validation: Temporal train/test split to prevent data leakage\n- Performance: R² = 0.7966 (79.66% accuracy) with ±10% confidence intervals"
     }
   ]
 } 

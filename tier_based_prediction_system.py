@@ -110,24 +110,27 @@ class TierBasedPredictionSystem:
         for i, pred in enumerate(yoy_predictions):
             print(f"  Q{i+1} 2024: {pred*100:.1f}% YoY growth")
         
-        # Calculate absolute ARR predictions
-        q1_2023_arr = company_df.iloc[0]['cARR']
-        q2_2023_arr = company_df.iloc[1]['cARR']
-        q3_2023_arr = company_df.iloc[2]['cARR']
-        q4_2023_arr = company_df.iloc[3]['cARR']
-        
-        base_arrs = [q1_2023_arr, q2_2023_arr, q3_2023_arr, q4_2023_arr]
+        # Calculate absolute ARR predictions with QoQ growth
+        q4_2023_arr = company_df.iloc[3]['cARR']  # Starting point for QoQ calculations
         
         print(f"\nARR PREDICTIONS WITH CONFIDENCE INTERVALS:")
         print("-" * 60)
         
         predictions = []
-        for i, (quarter, yoy_growth, base_arr) in enumerate(zip(
+        current_arr = q4_2023_arr  # Start from Q4 2023
+        
+        for i, (quarter, yoy_growth) in enumerate(zip(
             ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
-            yoy_predictions,
-            base_arrs
+            yoy_predictions
         )):
-            target_arr = base_arr * (1 + yoy_growth)
+            # Calculate target ARR based on YoY growth from same quarter previous year
+            base_quarter_arr = company_df.iloc[i]['cARR']  # Q1 2023, Q2 2023, etc.
+            target_arr = base_quarter_arr * (1 + yoy_growth)
+            
+            # Calculate QoQ growth from previous quarter
+            qoq_growth = ((target_arr - current_arr) / current_arr) * 100 if current_arr > 0 else 0
+            
+            # Calculate confidence intervals
             pessimistic_arr = target_arr * 0.9  # -10%
             optimistic_arr = target_arr * 1.1   # +10%
             
@@ -137,10 +140,12 @@ class TierBasedPredictionSystem:
                 'Pessimistic_ARR': pessimistic_arr,
                 'Optimistic_ARR': optimistic_arr,
                 'YoY_Growth': yoy_growth,
-                'YoY_Growth_Percent': yoy_growth * 100
+                'YoY_Growth_Percent': yoy_growth * 100,
+                'QoQ_Growth_Percent': qoq_growth
             })
             
-            print(f"{quarter}: ${target_arr:,.0f} (${pessimistic_arr:,.0f} - ${optimistic_arr:,.0f}) ({yoy_growth*100:.1f}% YoY)")
+            print(f"{quarter}: ${target_arr:,.0f} (${pessimistic_arr:,.0f} - ${optimistic_arr:,.0f}) ({qoq_growth:+.1f}% QoQ)")
+            current_arr = target_arr  # Update for next quarter
         
         return predictions, company_df
 

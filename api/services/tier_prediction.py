@@ -53,7 +53,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
         # Get predictions
         predictions, company_df = tier_system.predict_with_tiers(tier1_data, tier2_data)
         
-        # Format response
+        # Format response with QoQ growth
         forecast_results = []
         for pred in predictions:
             forecast_results.append({
@@ -61,7 +61,8 @@ def perform_tier_based_forecast(request: TierBasedRequest):
                 "predicted_arr": pred['ARR'],
                 "pessimistic_arr": pred['Pessimistic_ARR'],
                 "optimistic_arr": pred['Optimistic_ARR'],
-                "yoy_growth_percent": pred['YoY_Growth_Percent'],
+                "qoq_growth_percent": pred['QoQ_Growth_Percent'],
+                "yoy_growth_percent": pred['YoY_Growth_Percent'],  # Keep for final summary
                 "confidence_interval": f"±10%"
             })
         
@@ -75,6 +76,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'current_arr': current_arr,
             'predicted_final_arr': final_predicted_arr,
             'total_growth_percent': total_growth,
+            'final_yoy_growth_percent': predictions[-1]['YoY_Growth_Percent'],
             'tier_used': 'Tier 1 + Tier 2' if tier2_data else 'Tier 1 Only',
             'model_accuracy': 'R² = 0.7966 (79.66%)',
             'confidence_intervals': '±10% on all predictions'

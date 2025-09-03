@@ -1,0 +1,7 @@
+Company Name,Sector,Q1_ARR,Q2_ARR,Q3_ARR,Q4_ARR,Headcount,Gross_Margin,Sales_Marketing,Cash_Burn,Customers,Churn_Rate,Expansion_Rate
+RocketAI Technologies,Data & Analytics,2000000,2500000,3200000,4200000,25,85,1200000,800000,150,2.0,25.0
+TechFlow Solutions,Marketing & Customer Experience,2500000,2800000,3500000,4200000,45,78,2100000,1800000,280,3.5,15.0
+DataVault Analytics,Data & Analytics,1800000,1980000,2100000,2250000,32,72,1500000,1200000,180,4.2,8.0
+CloudScale Inc,Infrastructure & Network,8500000,9200000,9800000,10500000,78,82,6800000,4500000,650,2.8,12.0
+FinTech Pro,Cyber Security,3200000,3400000,3600000,3800000,56,75,2400000,2000000,320,3.8,10.0
+HealthTech Innovations,Communication & Collaboration,1200000,1350000,1500000,1650000,28,68,900000,800000,120,5.1,6.0

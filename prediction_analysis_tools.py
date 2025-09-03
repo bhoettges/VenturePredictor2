@@ -14,7 +14,7 @@ def analyze_recent_predictions(query: str) -> str:
         recent_predictions = prediction_memory.get_recent_predictions(5)
         
         if not recent_predictions:
-            return "No recent predictions available for analysis."
+            return "No recent predictions available for analysis. Please make a prediction first by providing your company's ARR data (e.g., 'My ARR is $2.1M and net new ARR is $320K') or upload a CSV file with your financial data. Once you have predictions, I can help you analyze growth patterns, model performance, and confidence intervals!"
         
         # Parse the query to understand what the user wants to know
         query_lower = query.lower()

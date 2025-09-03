@@ -1,5 +1,628 @@
 [
   {
+    "timestamp": "2025-09-03T01:57:19.054888",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "qoq_growth_percent": 19.154573656961677,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "qoq_growth_percent": 16.744205701754456,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "qoq_growth_percent": 26.596664154835054,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "qoq_growth_percent": 33.64468444332451,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "final_yoy_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:51:06.831400",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "qoq_growth_percent": 19.154573656961677,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "qoq_growth_percent": 16.744205701754456,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "qoq_growth_percent": 26.596664154835054,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "qoq_growth_percent": 33.64468444332451,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "final_yoy_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:48:12.880772",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "qoq_growth_percent": 19.154573656961677,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "qoq_growth_percent": 16.744205701754456,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "qoq_growth_percent": 26.596664154835054,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "qoq_growth_percent": 33.64468444332451,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "final_yoy_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:47:56.311886",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "qoq_growth_percent": 19.154573656961677,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "qoq_growth_percent": 16.744205701754456,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "qoq_growth_percent": 26.596664154835054,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "qoq_growth_percent": 33.64468444332451,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "final_yoy_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:45:07.418438",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:41:10.526073",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:40:13.937005",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:37:32.419832",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 2500000.0,
+      "q3_arr": 3200000.0,
+      "q4_arr": 4200000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 5004492.09359239,
+        "pessimistic_arr": 4504042.884233152,
+        "optimistic_arr": 5504941.30295163,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 5842454.544071538,
+        "pessimistic_arr": 5258209.089664385,
+        "optimistic_arr": 6426699.998478693,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 7396352.557557145,
+        "pessimistic_arr": 6656717.301801431,
+        "optimistic_arr": 8135987.81331286,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 9884832.035863008,
+        "pessimistic_arr": 8896348.832276708,
+        "optimistic_arr": 10873315.23944931,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 4200000.0,
+      "predicted_final_arr": 9884832.035863008,
+      "total_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-09-03T01:35:14.883327",
+    "company_name": "RocketAI Technologies",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 800000.0,
+      "q2_arr": 1200000.0,
+      "q3_arr": 2000000.0,
+      "q4_arr": 3500000.0,
+      "headcount": 25,
+      "sector": "Data & Analytics",
+      "tier2_metrics": {
+        "gross_margin": 85.0,
+        "sales_marketing": 1200000.0,
+        "cash_burn": 800000.0,
+        "customers": 150.0,
+        "churn_rate": 2.0,
+        "expansion_rate": 25.0
+      }
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 2001796.8374369564,
+        "pessimistic_arr": 1801617.1536932609,
+        "optimistic_arr": 2201976.521180652,
+        "yoy_growth_percent": 150.22460467961955,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 2804378.181154338,
+        "pessimistic_arr": 2523940.3630389045,
+        "optimistic_arr": 3084815.9992697723,
+        "yoy_growth_percent": 133.6981817628615,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 4622720.3484732155,
+        "pessimistic_arr": 4160448.313625894,
+        "optimistic_arr": 5084992.383320537,
+        "yoy_growth_percent": 131.13601742366077,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 8237360.029885841,
+        "pessimistic_arr": 7413624.026897256,
+        "optimistic_arr": 9061096.032874426,
+        "yoy_growth_percent": 135.35314371102402,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "RocketAI Technologies",
+      "current_arr": 3500000.0,
+      "predicted_final_arr": 8237360.029885841,
+      "total_growth_percent": 135.35314371102402,
+      "tier_used": "Tier 1 + Tier 2",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions"
+    },
+    "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+    "success": true,
+    "error": null
+  },
+  {
     "timestamp": "2025-09-02T23:26:39.597421",
     "company_name": "Test Company",
     "prediction_type": "tier_based",
