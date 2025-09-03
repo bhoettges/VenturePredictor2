@@ -207,4 +207,4 @@ This API is fully prepared for production deployment with:
 - ✅ Complete API documentation
 - ✅ Flexible input modes (basic/enhanced)
 - ✅ Uncertainty quantification
-- ✅ Historical data support 
+- ✅ Historical data support # Trigger redeploy - Wed Sep  3 02:53:46 CEST 2025
