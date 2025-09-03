@@ -110,25 +110,19 @@ class TierBasedPredictionSystem:
         for i, pred in enumerate(yoy_predictions):
             print(f"  Q{i+1} 2024: {pred*100:.1f}% YoY growth")
         
-        # Calculate absolute ARR predictions with QoQ growth
-        q4_2023_arr = company_df.iloc[3]['cARR']  # Starting point for QoQ calculations
-        
+        # Calculate absolute ARR predictions directly from model (honest approach)
         print(f"\nARR PREDICTIONS WITH CONFIDENCE INTERVALS:")
         print("-" * 60)
         
         predictions = []
-        current_arr = q4_2023_arr  # Start from Q4 2023
         
         for i, (quarter, yoy_growth) in enumerate(zip(
             ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
             yoy_predictions
         )):
-            # Calculate target ARR based on YoY growth from same quarter previous year
+            # Use model's YoY prediction directly (honest approach)
             base_quarter_arr = company_df.iloc[i]['cARR']  # Q1 2023, Q2 2023, etc.
-            target_arr = base_quarter_arr * (1 + yoy_growth)
-            
-            # Calculate QoQ growth from previous quarter
-            qoq_growth = ((target_arr - current_arr) / current_arr) * 100 if current_arr > 0 else 0
+            target_arr = base_quarter_arr * yoy_growth
             
             # Calculate confidence intervals
             pessimistic_arr = target_arr * 0.9  # -10%
@@ -141,11 +135,10 @@ class TierBasedPredictionSystem:
                 'Optimistic_ARR': optimistic_arr,
                 'YoY_Growth': yoy_growth,
                 'YoY_Growth_Percent': yoy_growth * 100,
-                'QoQ_Growth_Percent': qoq_growth
+                'QoQ_Growth_Percent': 0  # Will be calculated in API layer
             })
             
-            print(f"{quarter}: ${target_arr:,.0f} (${pessimistic_arr:,.0f} - ${optimistic_arr:,.0f}) ({qoq_growth:+.1f}% QoQ)")
-            current_arr = target_arr  # Update for next quarter
+            print(f"{quarter}: ${target_arr:,.0f} (${pessimistic_arr:,.0f} - ${optimistic_arr:,.0f}) ({yoy_growth*100:.1f}% YoY)")
         
         return predictions, company_df
 
