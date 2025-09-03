@@ -53,23 +53,39 @@ def perform_tier_based_forecast(request: TierBasedRequest):
         # Get predictions
         predictions, company_df = tier_system.predict_with_tiers(tier1_data, tier2_data)
         
-        # Format response with QoQ growth
+        # Format response with QoQ growth calculated from honest model predictions
         forecast_results = []
+        current_arr = request.q4_arr  # Start from Q4 2023
+        
         for pred in predictions:
+            # Calculate QoQ growth from previous quarter (honest approach)
+            qoq_growth = ((pred['ARR'] - current_arr) / current_arr) * 100 if current_arr > 0 else 0
+            
             forecast_results.append({
                 "quarter": pred['Quarter'],
                 "predicted_arr": pred['ARR'],
                 "pessimistic_arr": pred['Pessimistic_ARR'],
                 "optimistic_arr": pred['Optimistic_ARR'],
-                "qoq_growth_percent": pred['QoQ_Growth_Percent'],
-                "yoy_growth_percent": pred['YoY_Growth_Percent'],  # Keep for final summary
+                "qoq_growth_percent": qoq_growth,
+                "yoy_growth_percent": pred['YoY_Growth_Percent'],  # Model's honest YoY prediction
                 "confidence_interval": f"±10%"
             })
+            
+            current_arr = pred['ARR']  # Update for next quarter
         
         # Calculate insights
         current_arr = request.q4_arr
         final_predicted_arr = predictions[-1]['ARR']
         total_growth = ((final_predicted_arr - current_arr) / current_arr) * 100
+        
+        # Calculate cumulative ARR for 2023 (user input)
+        cumulative_arr_2023 = request.q1_arr + request.q2_arr + request.q3_arr + request.q4_arr
+        
+        # Calculate cumulative ARR for 2024 (model predictions)
+        cumulative_arr_2024 = sum([pred['ARR'] for pred in predictions])
+        
+        # Calculate total ARR (2023 + 2024 cumulative)
+        total_arr = cumulative_arr_2023 + cumulative_arr_2024
         
         insights = {
             'company_name': request.company_name or "Anonymous Company",
@@ -79,7 +95,22 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'final_yoy_growth_percent': predictions[-1]['YoY_Growth_Percent'],
             'tier_used': 'Tier 1 + Tier 2' if tier2_data else 'Tier 1 Only',
             'model_accuracy': 'R² = 0.7966 (79.66%)',
-            'confidence_intervals': '±10% on all predictions'
+            'confidence_intervals': '±10% on all predictions',
+            'user_input_arr_2023': {
+                'q1': request.q1_arr,
+                'q2': request.q2_arr,
+                'q3': request.q3_arr,
+                'q4': request.q4_arr,
+                'cumulative': cumulative_arr_2023
+            },
+            'predicted_arr_2024': {
+                'q1': predictions[0]['ARR'],
+                'q2': predictions[1]['ARR'],
+                'q3': predictions[2]['ARR'],
+                'q4': predictions[3]['ARR'],
+                'cumulative': cumulative_arr_2024
+            },
+            'total_arr': total_arr
         }
         
         result = {
