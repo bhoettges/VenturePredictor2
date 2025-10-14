@@ -40,8 +40,8 @@
 - ✅ **Documentation**: Comprehensive gpt_info.json with FAQs
 
 ### **Deployment Configuration**
-- ✅ **Main App**: `fastapi_app_simple.py` (simplified, production-ready)
-- ✅ **Start Command**: `uvicorn fastapi_app_simple:app --host 0.0.0.0 --port $PORT`
+- ✅ **Main App**: `fastapi_app.py` (production-ready with macro analysis)
+- ✅ **Start Command**: `uvicorn fastapi_app:app --host 0.0.0.0 --port $PORT`
 - ✅ **Python Version**: 3.10.18
 - ✅ **Environment Variables**: OPENAI_API_KEY configured
 - ✅ **Dependencies**: All packages specified in requirements.txt
@@ -51,7 +51,7 @@
 ### **1. Pre-Deployment Verification**
 ```bash
 # Test locally
-python3.10 fastapi_app_simple.py
+python3.10 -m uvicorn fastapi_app:app --reload
 
 # Test endpoints
 curl -X POST "http://127.0.0.1:8000/tier_based_forecast" \
@@ -76,7 +76,7 @@ git commit -m "Production deployment: Enhanced tier-based prediction system with
 git push origin main
 
 # For other platforms, use:
-# uvicorn fastapi_app_simple:app --host 0.0.0.0 --port $PORT
+# uvicorn fastapi_app:app --host 0.0.0.0 --port $PORT
 ```
 
 ## 🔧 **Post-Deployment Testing**

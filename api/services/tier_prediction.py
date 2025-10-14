@@ -20,10 +20,10 @@ if str(project_root) not in sys.path:
 from api.models.schemas import TierBasedRequest
 
 def perform_tier_based_forecast(request: TierBasedRequest):
-    """Tier-based forecasting using the new enhanced model with confidence intervals."""
+    """Tier-based forecasting using the hybrid ML+GPT system with trend detection."""
     try:
-        # Import the tier-based system
-        from tier_based_prediction_system import TierBasedPredictionSystem
+        # Import the hybrid prediction system
+        from hybrid_prediction_system import HybridPredictionSystem
         
         # Prepare Tier 1 data
         tier1_data = {
@@ -47,11 +47,11 @@ def perform_tier_based_forecast(request: TierBasedRequest):
                 'expansion_rate': request.tier2_metrics.expansion_rate
             }
         
-        # Initialize tier-based system
-        tier_system = TierBasedPredictionSystem()
+        # Initialize hybrid system
+        hybrid_system = HybridPredictionSystem()
         
-        # Get predictions
-        predictions, company_df = tier_system.predict_with_tiers(tier1_data, tier2_data)
+        # Get predictions with trend analysis
+        predictions, metadata = hybrid_system.predict_with_hybrid(tier1_data, tier2_data)
         
         # Format response with QoQ growth calculated from honest model predictions
         forecast_results = []
@@ -113,18 +113,44 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'total_arr': total_arr
         }
         
+        # Extract trend analysis from metadata
+        trend_analysis = metadata['trend_analysis']
+        
         result = {
             "success": True,
             "company_name": request.company_name or "Anonymous Company",
             "insights": insights,
             "forecast": forecast_results,
-            "model_used": "Enhanced Tier-Based Model with Confidence Intervals",
+            "model_used": f"Hybrid System ({metadata['prediction_method']})",
+            "prediction_method": metadata['prediction_method'],
+            "trend_analysis": {
+                "trend_type": trend_analysis['trend_type'],
+                "confidence": trend_analysis['confidence'],
+                "reason": trend_analysis['reason'],
+                "user_message": trend_analysis['user_message'],
+                "metrics": {
+                    "simple_growth": trend_analysis['metrics']['simple_growth'],
+                    "qoq_growth": trend_analysis['metrics']['qoq_growth'],
+                    "recent_momentum": trend_analysis['metrics']['recent_momentum'],
+                    "volatility": trend_analysis['metrics']['volatility'],
+                    "acceleration": trend_analysis['metrics']['acceleration']
+                }
+            },
             "tier_analysis": {
                 "tier1_provided": True,
                 "tier2_provided": tier2_data is not None,
                 "tier2_metrics_count": len([v for v in (tier2_data or {}).values() if v is not None]) if tier2_data else 0
             }
         }
+        
+        # Add GPT-specific information if used
+        if metadata['prediction_method'] == 'GPT':
+            result['gpt_analysis'] = {
+                "reasoning": metadata.get('gpt_reasoning', 'N/A'),
+                "confidence": metadata.get('gpt_confidence', 'N/A'),
+                "key_assumption": metadata.get('gpt_assumption', 'N/A'),
+                "fallback_used": metadata.get('fallback_used', False)
+            }
         
         # Store prediction in memory for chat analysis
         input_data = {

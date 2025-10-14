@@ -205,7 +205,7 @@ The system provides confidence intervals for all predictions using a ±10% uncer
 
 The API is built using FastAPI with a modular, scalable architecture:
 
-**Main Application (`fastapi_app_simple.py`):**
+**Main Application (`fastapi_app.py`):**
 ```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -452,7 +452,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn fastapi_app_simple:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn fastapi_app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.18

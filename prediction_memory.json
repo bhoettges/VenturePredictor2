@@ -1,18 +1,242 @@
 [
   {
-    "timestamp": "2025-09-03T19:06:21.254750",
-    "company_name": "CSV Upload Company",
-    "prediction_type": "csv",
+    "timestamp": "2025-10-14T12:16:27.510101",
+    "company_name": "Comeback Kids LLC",
+    "prediction_type": "tier_based",
     "input_data": {
-      "csv_columns": [
-        "Quarter",
-        "ARR_End_of_Quarter",
-        "Quarterly_Net_New_ARR",
-        "QRR_Quarterly_Recurring_Revenue",
-        "Headcount",
-        "Gross_Margin_Percent",
-        "Net_Profit_Loss_Margin_Percent"
-      ],
-      "rows_processed": 5,
-      "tier1_data": {
-        "q1_arr": 
+      "q1_arr": 2000000.0,
+      "q2_arr": 1000000.0,
+      "q3_arr": 1200000.0,
+      "q4_arr": 1800000.0,
+      "headcount": 75,
+      "sector": "Infrastructure & Network",
+      "tier2_metrics": null
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 1850000,
+        "pessimistic_arr": 1665000.0,
+        "optimistic_arr": 2035000.0000000002,
+        "qoq_growth_percent": 2.7777777777777777,
+        "yoy_growth_percent": -7.5,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 1500000,
+        "pessimistic_arr": 1350000.0,
+        "optimistic_arr": 1650000.0000000002,
+        "qoq_growth_percent": -18.91891891891892,
+        "yoy_growth_percent": 50.0,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 1600000,
+        "pessimistic_arr": 1440000.0,
+        "optimistic_arr": 1760000.0000000002,
+        "qoq_growth_percent": 6.666666666666667,
+        "yoy_growth_percent": 33.33333333333333,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 1650000,
+        "pessimistic_arr": 1485000.0,
+        "optimistic_arr": 1815000.0000000002,
+        "qoq_growth_percent": 3.125,
+        "yoy_growth_percent": -8.333333333333332,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "Comeback Kids LLC",
+      "current_arr": 1800000.0,
+      "predicted_final_arr": 1650000,
+      "total_growth_percent": -8.333333333333332,
+      "final_yoy_growth_percent": -8.333333333333332,
+      "tier_used": "Tier 1 Only",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions",
+      "user_input_arr_2023": {
+        "q1": 2000000.0,
+        "q2": 1000000.0,
+        "q3": 1200000.0,
+        "q4": 1800000.0,
+        "cumulative": 6000000.0
+      },
+      "predicted_arr_2024": {
+        "q1": 1850000,
+        "q2": 1500000,
+        "q3": 1600000,
+        "q4": 1650000,
+        "cumulative": 6600000
+      },
+      "total_arr": 12600000.0
+    },
+    "model_used": "Hybrid System (GPT)",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-10-14T12:16:24.579636",
+    "company_name": "Rocket Growth Co",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 1000000.0,
+      "q2_arr": 1400000.0,
+      "q3_arr": 2000000.0,
+      "q4_arr": 2800000.0,
+      "headcount": 100,
+      "sector": "Cyber Security",
+      "tier2_metrics": null
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 1305889.2472022814,
+        "pessimistic_arr": 1175300.3224820532,
+        "optimistic_arr": 1436478.1719225096,
+        "qoq_growth_percent": -53.361098314204234,
+        "yoy_growth_percent": 130.58892472022814,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 1876059.8346994433,
+        "pessimistic_arr": 1688453.851229499,
+        "optimistic_arr": 2063665.8181693878,
+        "qoq_growth_percent": 43.66148114923891,
+        "yoy_growth_percent": 134.0042739071031,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 2638805.387337316,
+        "pessimistic_arr": 2374924.8486035843,
+        "optimistic_arr": 2902685.926071048,
+        "qoq_growth_percent": 40.65678175771345,
+        "yoy_growth_percent": 131.94026936686578,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 3752220.410719002,
+        "pessimistic_arr": 3376998.369647102,
+        "optimistic_arr": 4127442.4517909028,
+        "qoq_growth_percent": 42.19390443586962,
+        "yoy_growth_percent": 134.00787181139293,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "Rocket Growth Co",
+      "current_arr": 2800000.0,
+      "predicted_final_arr": 3752220.410719002,
+      "total_growth_percent": 34.00787181139293,
+      "final_yoy_growth_percent": 134.00787181139293,
+      "tier_used": "Tier 1 Only",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions",
+      "user_input_arr_2023": {
+        "q1": 1000000.0,
+        "q2": 1400000.0,
+        "q3": 2000000.0,
+        "q4": 2800000.0,
+        "cumulative": 7200000.0
+      },
+      "predicted_arr_2024": {
+        "q1": 1305889.2472022814,
+        "q2": 1876059.8346994433,
+        "q3": 2638805.387337316,
+        "q4": 3752220.410719002,
+        "cumulative": 9572974.879958043
+      },
+      "total_arr": 16772974.879958043
+    },
+    "model_used": "Hybrid System (ML_Model)",
+    "success": true,
+    "error": null
+  },
+  {
+    "timestamp": "2025-10-14T12:16:23.945171",
+    "company_name": "Struggling SaaS Inc",
+    "prediction_type": "tier_based",
+    "input_data": {
+      "q1_arr": 2000000.0,
+      "q2_arr": 1500000.0,
+      "q3_arr": 1000000.0,
+      "q4_arr": 500000.0,
+      "headcount": 50,
+      "sector": "Data & Analytics",
+      "tier2_metrics": null
+    },
+    "predictions": [
+      {
+        "quarter": "Q1 2024",
+        "predicted_arr": 400000,
+        "pessimistic_arr": 360000.0,
+        "optimistic_arr": 440000.00000000006,
+        "qoq_growth_percent": -20.0,
+        "yoy_growth_percent": -80.0,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q2 2024",
+        "predicted_arr": 300000,
+        "pessimistic_arr": 270000.0,
+        "optimistic_arr": 330000.0,
+        "qoq_growth_percent": -25.0,
+        "yoy_growth_percent": -80.0,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q3 2024",
+        "predicted_arr": 200000,
+        "pessimistic_arr": 180000.0,
+        "optimistic_arr": 220000.00000000003,
+        "qoq_growth_percent": -33.33333333333333,
+        "yoy_growth_percent": -80.0,
+        "confidence_interval": "\u00b110%"
+      },
+      {
+        "quarter": "Q4 2024",
+        "predicted_arr": 150000,
+        "pessimistic_arr": 135000.0,
+        "optimistic_arr": 165000.0,
+        "qoq_growth_percent": -25.0,
+        "yoy_growth_percent": -70.0,
+        "confidence_interval": "\u00b110%"
+      }
+    ],
+    "insights": {
+      "company_name": "Struggling SaaS Inc",
+      "current_arr": 500000.0,
+      "predicted_final_arr": 150000,
+      "total_growth_percent": -70.0,
+      "final_yoy_growth_percent": -70.0,
+      "tier_used": "Tier 1 Only",
+      "model_accuracy": "R\u00b2 = 0.7966 (79.66%)",
+      "confidence_intervals": "\u00b110% on all predictions",
+      "user_input_arr_2023": {
+        "q1": 2000000.0,
+        "q2": 1500000.0,
+        "q3": 1000000.0,
+        "q4": 500000.0,
+        "cumulative": 5000000.0
+      },
+      "predicted_arr_2024": {
+        "q1": 400000,
+        "q2": 300000,
+        "q3": 200000,
+        "q4": 150000,
+        "cumulative": 1050000
+      },
+      "total_arr": 6050000.0
+    },
+    "model_used": "Hybrid System (GPT)",
+    "success": true,
+    "error": null
+  }
+]
