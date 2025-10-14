@@ -93,7 +93,19 @@ class TrendDetector:
                 "user_message": "📊 Trend reversal detected. Using contextual analysis."
             }
         
-        # 3. FLAT/STAGNANT (use GPT - ML expects growth)
+        # 3. HIGHLY VOLATILE (check BEFORE flat - priority!)
+        if volatility > 0.20:  # Lowered threshold from 0.25 to catch more volatile cases
+            return {
+                "trend_type": "VOLATILE_IRREGULAR",
+                "use_gpt": True,
+                "confidence": "medium",
+                "reason": f"High volatility ({volatility:.2f}) - irregular pattern requires contextual analysis",
+                "metrics": metrics,
+                "user_message": "⚡ High volatility detected. Using contextual analysis."
+            }
+        
+        # 4. FLAT/STAGNANT (use GPT - ML expects growth)
+        # Only if not volatile AND minimal growth
         if abs(simple_growth) < self.FLAT_THRESHOLD and abs(avg_qoq) < 0.05:
             return {
                 "trend_type": "FLAT_STAGNANT",
@@ -102,17 +114,6 @@ class TrendDetector:
                 "reason": "Minimal growth - ML model trained on high-growth companies",
                 "metrics": metrics,
                 "user_message": "📉 Flat growth pattern detected. Using specialized analysis."
-            }
-        
-        # 4. HIGHLY VOLATILE (use GPT for contextual reasoning)
-        if volatility > self.VOLATILITY_THRESHOLD:
-            return {
-                "trend_type": "VOLATILE_IRREGULAR",
-                "use_gpt": True,
-                "confidence": "medium",
-                "reason": f"High volatility ({volatility:.2f}) - irregular pattern requires contextual analysis",
-                "metrics": metrics,
-                "user_message": "⚡ High volatility detected. Using contextual analysis."
             }
         
         # 5. CONSISTENT GROWTH (use ML - this is what it's trained for!)

@@ -81,11 +81,15 @@ Context: {reason}
 
 Based on this {trend_type} pattern, provide realistic ARR predictions for 2024:
 
-1. Consider the ACTUAL trajectory (not just overall growth)
-2. Factor in recent momentum (most important indicator)
-3. Apply industry recovery/decline patterns
-4. Be conservative with reversals
-5. Account for sector-specific dynamics
+CRITICAL RULES:
+1. DO NOT simply repeat the 2023 QoQ pattern - this is forecasting, not copy-pasting
+2. Factor in recent momentum (Q3→Q4) as the PRIMARY indicator for Q1 2024
+3. Apply realistic business logic:
+   - Companies rarely repeat exact same volatile swings
+   - Negative momentum usually continues (dampened) for 1-2 quarters
+   - Recovery requires business changes, not just time
+4. For VOLATILE companies: Expect moderation/stabilization, not pattern repetition
+5. For DECLINING momentum: Project continued decline (dampened) unless strong reason for reversal
 
 Return ONLY a JSON object with this exact structure (no other text):
 {{
