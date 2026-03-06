@@ -122,7 +122,9 @@ class TierBasedPredictionSystem:
         )):
             # Use model's YoY prediction directly (honest approach)
             base_quarter_arr = company_df.iloc[i]['cARR']  # Q1 2023, Q2 2023, etc.
-            target_arr = base_quarter_arr * yoy_growth
+            # NOTE: `yoy_growth` is a YoY growth *rate* (e.g. 0.30 == +30%),
+            # not a multiplier. Convert to absolute ARR using (1 + rate).
+            target_arr = base_quarter_arr * (1 + yoy_growth)
             
             # Calculate confidence intervals
             pessimistic_arr = target_arr * 0.9  # -10%

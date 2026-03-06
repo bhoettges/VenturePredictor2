@@ -146,8 +146,28 @@ class IntelligentFeatureCompletionSystem:
         
         # Extract user characteristics
         user_arr = user_data['cARR'].iloc[-1] if 'cARR' in user_data.columns else 1000000
-        user_growth = user_data['yoy_growth'].iloc[-1] if 'yoy_growth' in user_data.columns else 0.2
+
+        # Tier-based inputs often provide only 4 quarters (Q1-Q4), so `pct_change(4)` yields NaN.
+        # Use a robust annualized growth proxy when YoY growth isn't available.
+        user_growth = None
+        if 'yoy_growth' in user_data.columns and len(user_data) > 0:
+            user_growth = user_data['yoy_growth'].iloc[-1]
+        if user_growth is None or (isinstance(user_growth, float) and np.isnan(user_growth)) or pd.isna(user_growth):
+            user_growth = 0.2  # sensible fallback if we can't compute a proxy
+            if 'cARR' in user_data.columns and len(user_data) >= 2:
+                first_arr = user_data['cARR'].iloc[0]
+                last_arr = user_data['cARR'].iloc[-1]
+                if pd.notna(first_arr) and pd.notna(last_arr) and first_arr > 0:
+                    # Q1→Q4 is 3 quarters of change; annualize to 4 quarters:
+                    # annualized = (last/first)^(4/3) - 1
+                    try:
+                        user_growth = (float(last_arr) / float(first_arr)) ** (4 / 3) - 1
+                    except Exception:
+                        user_growth = 0.2
+
         user_headcount = user_data['Headcount (HC)'].iloc[-1] if 'Headcount (HC)' in user_data.columns else 50
+        if user_headcount is None or pd.isna(user_headcount):
+            user_headcount = 50
         
         # Calculate similarity scores
         profiles = self.company_profiles.copy()

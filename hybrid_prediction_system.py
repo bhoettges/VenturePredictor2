@@ -16,21 +16,15 @@ import numpy as np
 from typing import Dict, Tuple, Optional
 from intelligent_feature_completion_system import IntelligentFeatureCompletionSystem
 from trend_detector import TrendDetector
-from gpt_predictor import GPTPredictor
+from rule_based_health_predictor import RuleBasedHealthPredictor
 
 class HybridPredictionSystem:
-    """Hybrid system that uses ML for growth and GPT for edge cases."""
+    """Hybrid system that uses ML for growth and rule-based health assessment for edge cases."""
     
     def __init__(self):
         self.ml_system = IntelligentFeatureCompletionSystem()
         self.trend_detector = TrendDetector()
-        try:
-            self.gpt_predictor = GPTPredictor()
-            self.gpt_available = True
-        except ValueError as e:
-            print(f"⚠️ GPT predictor not available: {e}")
-            print("   Will fall back to ML model for all predictions")
-            self.gpt_available = False
+        self.rule_based_predictor = RuleBasedHealthPredictor()
     
     def create_company_dataframe(self, tier1_data: Dict, tier2_data: Optional[Dict] = None) -> pd.DataFrame:
         """Create company dataframe from tier-based input."""
@@ -106,49 +100,89 @@ class HybridPredictionSystem:
         print(f"Confidence: {trend_analysis['confidence']}")
         print(f"Reason: {trend_analysis['reason']}")
         print(f"\n{trend_analysis['user_message']}")
+
+        # Optional: health-score routing override (best win)
+        # If Tier 2 metrics indicate poor fundamentals (e.g., low health score or short runway),
+        # we route to the rule-based health system even if ARR trend looks "normal".
+        routing_override = {
+            "applied": False,
+            "reason": None,
+            "health_tier": None,
+            "health_score": None,
+            "runway_months": None
+        }
+        tier2_has_any_signal = bool(tier2_data) and any(v is not None for v in (tier2_data or {}).values())
+        if tier2_has_any_signal:
+            try:
+                health_metrics = self.rule_based_predictor.calculate_health_metrics(q1, q2, q3, q4, tier2_data)
+                health_tier, health_assessment = self.rule_based_predictor.assess_health_tier(health_metrics)
+                runway_months = health_metrics.get("runway_months", None)
+                health_score = health_assessment.get("score", None)
+
+                routing_override.update({
+                    "health_tier": health_tier,
+                    "health_score": health_score,
+                    "runway_months": runway_months
+                })
+
+                # Override criteria:
+                # - LOW health tier OR
+                # - runway below minimum threshold (capital constraint risk)
+                min_runway = getattr(self.rule_based_predictor, "MINIMUM_RUNWAY_MONTHS", 12)
+                if health_tier == "LOW":
+                    routing_override["applied"] = True
+                    routing_override["reason"] = f"Health tier LOW (score {health_score}/100) from Tier 2 signals"
+                elif runway_months is not None and runway_months < min_runway:
+                    routing_override["applied"] = True
+                    routing_override["reason"] = f"Short runway ({runway_months:.0f} months) below minimum ({min_runway})"
+            except Exception:
+                # If health scoring fails for any reason, don't block predictions
+                pass
         
         # Step 2: Route to appropriate prediction method
         print("\n🔮 STEP 2: PREDICTION")
         print("-" * 80)
         
-        if trend_analysis['use_gpt'] and self.gpt_available:
-            print("✅ Using GPT for contextual prediction (edge case detected)")
+        if trend_analysis['use_gpt'] or routing_override["applied"]:
+            print("✅ Using rule-based health assessment (edge case detected)")
             
-            # Use GPT
-            result = self.gpt_predictor.predict_arr(
+            # Use rule-based health predictor
+            result = self.rule_based_predictor.predict_arr(
                 q1=q1, q2=q2, q3=q3, q4=q4,
                 sector=tier1_data['sector'],
                 headcount=tier1_data['headcount'],
-                trend_analysis=trend_analysis
+                trend_analysis=trend_analysis,
+                tier2_data=tier2_data
             )
             
             if result['success']:
                 predictions = result['predictions']
                 metadata = {
-                    'prediction_method': 'GPT',
+                    'prediction_method': 'Rule-Based Health Assessment',
                     'trend_analysis': trend_analysis,
-                    'gpt_reasoning': result['gpt_reasoning'],
-                    'gpt_confidence': result['gpt_confidence'],
-                    'gpt_assumption': result.get('gpt_assumption', 'N/A'),
-                    'fallback_used': result.get('fallback_used', False)
+                    'health_tier': result['health_tier'],
+                    'health_assessment': result['health_assessment'],
+                    'health_metrics': result['health_metrics'],
+                    'reasoning': result['reasoning'],
+                    'confidence': result['confidence'],
+                    'key_assumption': result.get('key_assumption', 'N/A'),
+                    'routing_override': routing_override
                 }
                 
-                print(f"\n💡 GPT Reasoning: {result['gpt_reasoning']}")
-                print(f"🎯 Confidence: {result['gpt_confidence']}")
+                print(f"\n🏥 Health Tier: {result['health_tier']} (Score: {result['health_assessment']['score']}/100)")
+                print(f"💡 Reasoning: {result['reasoning']}")
+                print(f"🎯 Confidence: {result['confidence']}")
                 
             else:
-                # GPT failed, fall back to ML
-                print("⚠️ GPT prediction failed, falling back to ML model")
+                # Rule-based failed, fall back to ML
+                print("⚠️ Rule-based prediction failed, falling back to ML model")
                 predictions, metadata = self._use_ml_model(tier1_data, tier2_data, trend_analysis)
         
         else:
             # Use ML model
-            if not trend_analysis['use_gpt']:
-                print("✅ Using ML model (standard growth pattern)")
-            else:
-                print("⚠️ GPT not available, using ML model as fallback")
-            
+            print("✅ Using ML model (standard growth pattern)")
             predictions, metadata = self._use_ml_model(tier1_data, tier2_data, trend_analysis)
+            metadata['routing_override'] = routing_override
         
         # Step 3: Calculate QoQ growth for all predictions
         current_arr = q4
@@ -187,7 +221,9 @@ class HybridPredictionSystem:
         )):
             # YoY prediction relative to same quarter last year
             base_quarter_arr = arr_values[i]
-            target_arr = base_quarter_arr * yoy_growth
+            # NOTE: `yoy_growth` is a YoY growth *rate* (e.g. 0.70 == +70%),
+            # not a multiplier. Convert to absolute ARR using (1 + rate).
+            target_arr = base_quarter_arr * (1 + yoy_growth)
             
             predictions.append({
                 'Quarter': quarter,
@@ -259,8 +295,9 @@ def test_hybrid_system():
         print(f"\n✅ Prediction Method: {metadata['prediction_method']}")
         print(f"✅ Trend Type: {metadata['trend_analysis']['trend_type']}")
         
-        if 'gpt_reasoning' in metadata:
-            print(f"\n💡 GPT Reasoning: {metadata['gpt_reasoning']}")
+        if 'health_tier' in metadata:
+            print(f"\n🏥 Health Tier: {metadata['health_tier']}")
+            print(f"💡 Reasoning: {metadata['reasoning']}")
 
 if __name__ == "__main__":
     test_hybrid_system()

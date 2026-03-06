@@ -91,8 +91,14 @@ def handle_chat(request: ChatRequest):
     country_match = re.search(country_pattern, request.message, re.IGNORECASE)
     currency_match = re.search(currency_pattern, request.message, re.IGNORECASE)
     
-    # Check for specific forecasting requests
-    forecast_keywords = ['forecast', 'predict', 'projection', 'growth', 'future', 'next quarter', '2025']
+    # Check if user is asking about their RECENT prediction (priority check!)
+    prediction_question_keywords = ['my prediction', 'the prediction', 'my forecast', 'the forecast', 'my arr', 
+                                   'why', 'how come', 'explain', 'understand', 'doesn\'t make sense',
+                                   'q1', 'q2', 'q3', 'q4', 'quarter', 'my result', 'the result']
+    is_prediction_question = any(keyword in message for keyword in prediction_question_keywords)
+    
+    # Check for specific forecasting requests (NEW prediction)
+    forecast_keywords = ['new forecast', 'new predict', 'another forecast', 'forecast for', 'predict for']
     is_forecast_request = any(keyword in message for keyword in forecast_keywords)
     
     # Check for feature questions
@@ -110,6 +116,17 @@ def handle_chat(request: ChatRequest):
     # Check for prediction analysis requests (exclude algorithm-related terms)
     prediction_keywords = ['prediction', 'forecast', 'analysis', 'accuracy', 'confidence', 'growth pattern', 'performance']
     is_prediction_analysis = any(keyword in message.lower() for keyword in prediction_keywords) and not is_algorithm_question
+    
+    # PRIORITY 1: User asking about their recent prediction (before asking for new data!)
+    if is_prediction_question and not is_forecast_request:
+        try:
+            from prediction_analysis_tools import analyze_recent_predictions
+            # Use the prediction analysis tool
+            analysis_result = analyze_recent_predictions(request.message)
+            return {"response": analysis_result}
+        except Exception as e:
+            # Fallback if prediction analysis fails
+            return {"response": f"I tried to analyze your recent prediction but encountered an issue: {str(e)}. Could you be more specific about what you'd like to know, or make a new prediction?"}
     
     # If user provides financial data and wants a forecast
     if (arr_match or net_new_match) and is_forecast_request:

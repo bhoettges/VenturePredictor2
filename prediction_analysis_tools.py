@@ -14,10 +14,21 @@ def analyze_recent_predictions(query: str) -> str:
         recent_predictions = prediction_memory.get_recent_predictions(5)
         
         if not recent_predictions:
-            return "No recent predictions available for analysis. Please make a prediction first by providing your company's ARR data (e.g., 'My ARR is $2.1M and net new ARR is $320K') or upload a CSV file with your financial data. Once you have predictions, I can help you analyze growth patterns, model performance, and confidence intervals!"
+            return "No recent predictions available for analysis. Please make a prediction first by providing your company's quarterly ARR data."
+        
+        # Get the most recent prediction (user's latest forecast)
+        latest_prediction = recent_predictions[0] if recent_predictions else None
         
         # Parse the query to understand what the user wants to know
         query_lower = query.lower()
+        
+        # Check if user is asking "why" or questioning the prediction
+        why_question_keywords = ['why', 'how come', 'explain', 'doesn\'t make sense', 'not', 'never']
+        is_why_question = any(keyword in query_lower for keyword in why_question_keywords)
+        
+        # If asking why/questioning, provide detailed reasoning from latest prediction
+        if is_why_question and latest_prediction:
+            return explain_latest_prediction(latest_prediction, query)
         
         if "summary" in query_lower or "overview" in query_lower:
             return prediction_memory.get_prediction_summary()
@@ -55,6 +66,86 @@ def analyze_recent_predictions(query: str) -> str:
     
     except Exception as e:
         return f"Error analyzing predictions: {str(e)}"
+
+def explain_latest_prediction(prediction: Dict[str, Any], query: str) -> str:
+    """Explain the latest prediction, addressing user's specific concern"""
+    if not prediction['success']:
+        return f"Your latest prediction encountered an error: {prediction.get('error', 'Unknown error')}"
+    
+    # Extract key information
+    trend_analysis = prediction.get('trend_analysis', {})
+    gpt_analysis = prediction.get('gpt_analysis', {})
+    input_data = prediction.get('input_data', {})
+    forecasts = prediction.get('forecast', [])
+    
+    # Get input ARR values
+    q1_input = input_data.get('q1_arr', 0)
+    q2_input = input_data.get('q2_arr', 0)
+    q3_input = input_data.get('q3_arr', 0)
+    q4_input = input_data.get('q4_arr', 0)
+    
+    # Find peak quarter in input
+    arr_values = [q1_input, q2_input, q3_input, q4_input]
+    max_arr = max(arr_values) if arr_values else 0
+    peak_quarter = ['Q1', 'Q2', 'Q3', 'Q4'][arr_values.index(max_arr)] if arr_values else 'Unknown'
+    
+    # Check if predictions ever reach peak
+    predicted_arrs = [f.get('predicted_arr', 0) for f in forecasts]
+    max_predicted = max(predicted_arrs) if predicted_arrs else 0
+    
+    result = f"📊 **Understanding Your Prediction**\n\n"
+    
+    # Address the specific concern
+    if max_arr > max_predicted:
+        result += f"**Your Question:** You're right to notice that predictions don't reach your Q{peak_quarter[-1]} peak of ${max_arr:,.0f}!\n\n"
+        result += f"**Why This Happens:**\n"
+        
+        if trend_analysis:
+            trend_type = trend_analysis.get('trend_type', 'Unknown')
+            recent_momentum = trend_analysis.get('metrics', {}).get('recent_momentum', 0) * 100
+            
+            result += f"1. **Trend Detected:** {trend_type}\n"
+            result += f"2. **Recent Momentum:** {recent_momentum:+.1f}% (Q3→Q4)\n"
+            
+            if recent_momentum < -15:
+                result += f"3. **Recent Crash:** Your company dropped {abs(recent_momentum):.1f}% from Q3 to Q4\n"
+                result += f"4. **Prediction Logic:** After a significant drop, the model projects continued decline or slow recovery, not an immediate return to peak\n\n"
+            
+            if gpt_analysis:
+                result += f"**GPT Reasoning:**\n{gpt_analysis.get('reasoning', 'N/A')}\n\n"
+                result += f"**Key Assumption:**\n{gpt_analysis.get('key_assumption', 'N/A')}\n\n"
+        
+        result += f"**The Numbers:**\n"
+        result += f"  • Your Q{peak_quarter[-1]} 2023 Peak: ${max_arr:,.0f}\n"
+        result += f"  • Your Q4 2023 (Current): ${q4_input:,.0f}\n"
+        result += f"  • Highest 2024 Prediction: ${max_predicted:,.0f}\n"
+        result += f"  • Gap: ${max_arr - max_predicted:,.0f} ({((max_arr - max_predicted)/max_arr*100):.1f}% below peak)\n\n"
+        
+        result += f"**What This Means:**\n"
+        result += f"The model sees your recent decline and projects recovery will take time. "
+        result += f"To reach your Q{peak_quarter[-1]} peak again, you'd likely need operational changes or market improvements.\n\n"
+        result += f"💡 **Tip:** If you believe you'll recover faster, this is where business judgment overrides the model!"
+    
+    else:
+        result += f"**Your Input:** Q1 ${q1_input:,.0f}, Q2 ${q2_input:,.0f}, Q3 ${q3_input:,.0f}, Q4 ${q4_input:,.0f}\n\n"
+        
+        if trend_analysis:
+            result += f"**Trend Analysis:**\n"
+            result += f"  • Type: {trend_analysis.get('trend_type', 'Unknown')}\n"
+            result += f"  • Confidence: {trend_analysis.get('confidence', 'Unknown')}\n"
+            result += f"  • Reason: {trend_analysis.get('reason', 'N/A')}\n\n"
+        
+        if gpt_analysis:
+            result += f"**Prediction Reasoning:**\n{gpt_analysis.get('reasoning', 'Standard ML model prediction')}\n\n"
+        
+        result += f"**2024 Forecast:**\n"
+        for forecast in forecasts[:2]:
+            quarter = forecast.get('quarter', 'Unknown')
+            arr = forecast.get('predicted_arr', 0)
+            yoy = forecast.get('yoy_growth_percent', 0)
+            result += f"  • {quarter}: ${arr:,.0f} ({yoy:+.1f}% YoY)\n"
+    
+    return result
 
 def format_company_prediction(prediction: Dict[str, Any]) -> str:
     """Format a specific company's prediction for display"""

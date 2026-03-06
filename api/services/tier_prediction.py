@@ -143,8 +143,18 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             }
         }
         
-        # Add GPT-specific information if used
-        if metadata['prediction_method'] == 'GPT':
+        # Add edge-case explanation when rule-based path was used
+        if metadata.get('prediction_method') == 'Rule-Based Health Assessment':
+            result['edge_case_analysis'] = {
+                "method": "Rule-Based Health Assessment",
+                "health_tier": metadata.get('health_tier', 'N/A'),
+                "health_score": (metadata.get('health_assessment') or {}).get('score', 'N/A'),
+                "reasoning": metadata.get('reasoning', 'N/A'),
+                "confidence": metadata.get('confidence', 'N/A'),
+                "key_assumption": metadata.get('key_assumption', 'N/A')
+            }
+        # Backward-compatible field if older clients expect GPT-style info
+        elif metadata.get('prediction_method') == 'GPT':
             result['gpt_analysis'] = {
                 "reasoning": metadata.get('gpt_reasoning', 'N/A'),
                 "confidence": metadata.get('gpt_confidence', 'N/A'),
