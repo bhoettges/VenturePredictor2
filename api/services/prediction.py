@@ -5,9 +5,6 @@ from typing import List
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent
-from langchain.tools import Tool as LC_Tool
-from prediction_analysis_tools import prediction_analysis_tool
 import re
 import json
 from datetime import datetime
@@ -48,22 +45,7 @@ def parse_features(input_str: str):
 
 # Old CSV tool removed - now using tier-based CSV processing
 
-# --- LangChain Tools ---
-arr_growth_tool_lgbm = LC_Tool(
-    name="LightGBM ARR Growth Predictor",
-    func=lambda s: arr_tool(s, 'lightgbm'),
-    description="Predicts ARR YoY growth for the next 4 quarters using the LightGBM model. Input: 28 comma-separated features."
-)
-# Old CSV LangChain tool removed - now using tier-based CSV processing
-
-# --- LangChain Agent ---
 llm = ChatOpenAI(temperature=0, openai_api_key=os.getenv("OPENAI_API_KEY"))
-agent = initialize_agent(
-    tools=[arr_growth_tool_lgbm, prediction_analysis_tool],  # Added prediction analysis tool
-    llm=llm,
-    agent_type="chat-zero-shot-react-description",
-    verbose=True
-)
 
 # Old predict_from_csv function removed - now using tier_prediction.py
 
@@ -340,9 +322,9 @@ def handle_chat(request: ChatRequest):
     # If user asks about predictions/analysis
     elif is_prediction_analysis:
         try:
-            # Use the LangChain agent with prediction analysis tools
-            response = agent.run(f"User is asking about predictions: {message}")
-            return {"response": response}
+            from prediction_analysis_tools import analyze_recent_predictions
+            analysis = analyze_recent_predictions(message)
+            return {"response": analysis}
         except Exception as e:
             return {
                 "response": f"I can help analyze your predictions! I can provide:\n\n📊 **Prediction Analysis**: Summary of recent forecasts\n🏢 **Company Analysis**: Detailed breakdown for specific companies\n📈 **Growth Patterns**: Analysis of growth trends across predictions\n🎯 **Model Performance**: Accuracy and confidence metrics\n📋 **Confidence Intervals**: Uncertainty analysis\n\nTry asking: 'Show me my recent predictions' or 'Analyze the growth patterns' or 'What's the model accuracy?'"
