@@ -7,10 +7,14 @@ Only includes the new tier-based forecasting endpoint to avoid import issues.
 """
 
 import sys
+import os
 import pandas as pd
 import io
 from prediction_memory import add_tier_based_prediction, add_csv_prediction
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Add the project root to the Python path
 project_root = Path(__file__).resolve().parents[2]
@@ -18,6 +22,79 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from api.models.schemas import TierBasedRequest
+
+
+def generate_prediction_narrative(result: dict) -> str:
+    """Generate an LLM-powered narrative that explains the prediction in plain language."""
+    try:
+        from langchain_openai import ChatOpenAI
+
+        llm = ChatOpenAI(
+            temperature=0.3,
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+        )
+
+        company = result.get("company_name", "the company")
+        insights = result.get("insights", {})
+        forecast = result.get("forecast", [])
+        trend = result.get("trend_analysis", {})
+        method = result.get("prediction_method", "ML")
+        edge = result.get("edge_case_analysis")
+
+        current_arr = insights.get("current_arr", 0)
+        final_arr = insights.get("predicted_final_arr", 0)
+        growth = insights.get("total_growth_percent", 0)
+        tier_used = insights.get("tier_used", "Tier 1 Only")
+
+        quarters_summary = "\n".join(
+            f"  {f['quarter']}: ${f['predicted_arr']:,.0f} "
+            f"(YoY {f['yoy_growth_percent']:+.1f}%, "
+            f"range ${f['pessimistic_arr']:,.0f}-${f['optimistic_arr']:,.0f})"
+            for f in forecast
+        )
+
+        trend_desc = ""
+        if trend:
+            trend_desc = (
+                f"Trend detected: {trend.get('trend_type', 'N/A')} "
+                f"(confidence: {trend.get('confidence', 'N/A')}). "
+                f"Reason: {trend.get('reason', 'N/A')}."
+            )
+
+        edge_desc = ""
+        if edge:
+            edge_desc = (
+                f"Health assessment: tier={edge.get('health_tier','N/A')}, "
+                f"reasoning={edge.get('reasoning','N/A')}."
+            )
+
+        prompt = f"""You are a VC analyst assistant. A prediction has just been made for "{company}".
+Provide a concise (3-5 paragraph) plain-language analysis. Be specific about the numbers.
+
+DATA:
+- Current Q4 ARR: ${current_arr:,.0f}
+- Predicted Q4-ahead ARR: ${final_arr:,.0f}
+- Total growth: {growth:+.1f}%
+- Data provided: {tier_used}
+- Prediction method: {method}
+- {trend_desc}
+- {edge_desc}
+
+Quarterly forecast:
+{quarters_summary}
+
+Cover:
+1. What the forecast says about this company's trajectory
+2. Why the system chose the {method} path (based on the trend detection)
+3. Key risks or opportunities visible in the numbers
+4. How the ±10% confidence band should be interpreted for decision-making
+
+Keep the tone professional but accessible. Do not repeat raw numbers excessively."""
+
+        return llm.invoke(prompt).content
+    except Exception as e:
+        return f"Automated analysis unavailable: {e}"
+
 
 def perform_tier_based_forecast(request: TierBasedRequest):
     """Tier-based forecasting using the hybrid ML+GPT system with trend detection."""
@@ -161,6 +238,9 @@ def perform_tier_based_forecast(request: TierBasedRequest):
                 "key_assumption": metadata.get('gpt_assumption', 'N/A'),
                 "fallback_used": metadata.get('fallback_used', False)
             }
+        
+        # Generate LLM narrative alongside the structured prediction
+        result["analysis_narrative"] = generate_prediction_narrative(result)
         
         # Store prediction in memory for chat analysis
         input_data = {

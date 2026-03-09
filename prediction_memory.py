@@ -21,6 +21,9 @@ class PredictionRecord:
     model_used: str
     success: bool
     error: Optional[str] = None
+    trend_analysis: Optional[Dict[str, Any]] = None
+    prediction_method: Optional[str] = None
+    edge_case_analysis: Optional[Dict[str, Any]] = None
 
 class PredictionMemory:
     """Manages prediction history for chat analysis"""
@@ -39,7 +42,10 @@ class PredictionMemory:
                       insights: Dict[str, Any],
                       model_used: str,
                       success: bool = True,
-                      error: Optional[str] = None):
+                      error: Optional[str] = None,
+                      trend_analysis: Optional[Dict[str, Any]] = None,
+                      prediction_method: Optional[str] = None,
+                      edge_case_analysis: Optional[Dict[str, Any]] = None):
         """Add a new prediction to memory"""
         
         record = PredictionRecord(
@@ -51,7 +57,10 @@ class PredictionMemory:
             insights=insights,
             model_used=model_used,
             success=success,
-            error=error
+            error=error,
+            trend_analysis=trend_analysis,
+            prediction_method=prediction_method,
+            edge_case_analysis=edge_case_analysis,
         )
         
         # Add to beginning of list (most recent first)
@@ -111,12 +120,18 @@ class PredictionMemory:
             print(f"Warning: Could not save prediction memory: {e}")
     
     def load_memory(self):
-        """Load predictions from file"""
+        """Load predictions from file (handles old records missing new fields)"""
         try:
             if os.path.exists(self.memory_file):
                 with open(self.memory_file, 'r') as f:
                     data = json.load(f)
-                self.predictions = [PredictionRecord(**record) for record in data]
+                records = []
+                for record in data:
+                    record.setdefault('trend_analysis', None)
+                    record.setdefault('prediction_method', None)
+                    record.setdefault('edge_case_analysis', None)
+                    records.append(PredictionRecord(**record))
+                self.predictions = records
         except Exception as e:
             print(f"Warning: Could not load prediction memory: {e}")
             self.predictions = []
@@ -134,7 +149,10 @@ def add_tier_based_prediction(result: Dict[str, Any], input_data: Dict[str, Any]
             predictions=result.get("forecast", []),
             insights=result.get("insights", {}),
             model_used=result.get("model_used", "Unknown"),
-            success=True
+            success=True,
+            trend_analysis=result.get("trend_analysis"),
+            prediction_method=result.get("prediction_method"),
+            edge_case_analysis=result.get("edge_case_analysis"),
         )
     else:
         prediction_memory.add_prediction(
@@ -158,7 +176,10 @@ def add_csv_prediction(result: Dict[str, Any], input_data: Dict[str, Any]):
             predictions=result.get("forecast", []),
             insights=result.get("insights", {}),
             model_used=result.get("model_used", "Unknown"),
-            success=True
+            success=True,
+            trend_analysis=result.get("trend_analysis"),
+            prediction_method=result.get("prediction_method"),
+            edge_case_analysis=result.get("edge_case_analysis"),
         )
     else:
         prediction_memory.add_prediction(

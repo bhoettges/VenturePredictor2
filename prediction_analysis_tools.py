@@ -72,48 +72,51 @@ def explain_latest_prediction(prediction: Dict[str, Any], query: str) -> str:
     if not prediction['success']:
         return f"Your latest prediction encountered an error: {prediction.get('error', 'Unknown error')}"
     
-    # Extract key information
-    trend_analysis = prediction.get('trend_analysis', {})
-    gpt_analysis = prediction.get('gpt_analysis', {})
+    trend_analysis = prediction.get('trend_analysis') or {}
+    edge_case_analysis = prediction.get('edge_case_analysis') or {}
+    prediction_method = prediction.get('prediction_method', 'Unknown')
     input_data = prediction.get('input_data', {})
-    forecasts = prediction.get('forecast', [])
+    forecasts = prediction.get('predictions', [])
     
-    # Get input ARR values
     q1_input = input_data.get('q1_arr', 0)
     q2_input = input_data.get('q2_arr', 0)
     q3_input = input_data.get('q3_arr', 0)
     q4_input = input_data.get('q4_arr', 0)
     
-    # Find peak quarter in input
     arr_values = [q1_input, q2_input, q3_input, q4_input]
     max_arr = max(arr_values) if arr_values else 0
     peak_quarter = ['Q1', 'Q2', 'Q3', 'Q4'][arr_values.index(max_arr)] if arr_values else 'Unknown'
     
-    # Check if predictions ever reach peak
     predicted_arrs = [f.get('predicted_arr', 0) for f in forecasts]
     max_predicted = max(predicted_arrs) if predicted_arrs else 0
     
     result = f"📊 **Understanding Your Prediction**\n\n"
+    result += f"**Prediction Method:** {prediction_method}\n\n"
     
-    # Address the specific concern
     if max_arr > max_predicted:
         result += f"**Your Question:** You're right to notice that predictions don't reach your Q{peak_quarter[-1]} peak of ${max_arr:,.0f}!\n\n"
         result += f"**Why This Happens:**\n"
         
         if trend_analysis:
             trend_type = trend_analysis.get('trend_type', 'Unknown')
-            recent_momentum = trend_analysis.get('metrics', {}).get('recent_momentum', 0) * 100
+            metrics = trend_analysis.get('metrics', {})
+            recent_momentum = metrics.get('recent_momentum', 0)
+            momentum_pct = recent_momentum * 100 if abs(recent_momentum) < 5 else recent_momentum
             
             result += f"1. **Trend Detected:** {trend_type}\n"
-            result += f"2. **Recent Momentum:** {recent_momentum:+.1f}% (Q3→Q4)\n"
+            result += f"2. **Recent Momentum:** {momentum_pct:+.1f}% (Q3→Q4)\n"
+            result += f"3. **Confidence:** {trend_analysis.get('confidence', 'N/A')}\n"
+            result += f"4. **Reason:** {trend_analysis.get('reason', 'N/A')}\n\n"
             
-            if recent_momentum < -15:
-                result += f"3. **Recent Crash:** Your company dropped {abs(recent_momentum):.1f}% from Q3 to Q4\n"
-                result += f"4. **Prediction Logic:** After a significant drop, the model projects continued decline or slow recovery, not an immediate return to peak\n\n"
-            
-            if gpt_analysis:
-                result += f"**GPT Reasoning:**\n{gpt_analysis.get('reasoning', 'N/A')}\n\n"
-                result += f"**Key Assumption:**\n{gpt_analysis.get('key_assumption', 'N/A')}\n\n"
+            if momentum_pct < -15:
+                result += f"**Recent Crash:** Your company dropped {abs(momentum_pct):.1f}% from Q3 to Q4. "
+                result += f"After a significant drop, the model projects continued decline or slow recovery, not an immediate return to peak.\n\n"
+        
+        if edge_case_analysis:
+            result += f"**Edge-Case Assessment:**\n"
+            result += f"  • Health Tier: {edge_case_analysis.get('health_tier', 'N/A')}\n"
+            result += f"  • Reasoning: {edge_case_analysis.get('reasoning', 'N/A')}\n"
+            result += f"  • Key Assumption: {edge_case_analysis.get('key_assumption', 'N/A')}\n\n"
         
         result += f"**The Numbers:**\n"
         result += f"  • Your Q{peak_quarter[-1]} 2023 Peak: ${max_arr:,.0f}\n"
@@ -135,11 +138,13 @@ def explain_latest_prediction(prediction: Dict[str, Any], query: str) -> str:
             result += f"  • Confidence: {trend_analysis.get('confidence', 'Unknown')}\n"
             result += f"  • Reason: {trend_analysis.get('reason', 'N/A')}\n\n"
         
-        if gpt_analysis:
-            result += f"**Prediction Reasoning:**\n{gpt_analysis.get('reasoning', 'Standard ML model prediction')}\n\n"
+        if edge_case_analysis:
+            result += f"**Edge-Case Assessment:**\n"
+            result += f"  • Health Tier: {edge_case_analysis.get('health_tier', 'N/A')}\n"
+            result += f"  • Reasoning: {edge_case_analysis.get('reasoning', 'N/A')}\n\n"
         
         result += f"**2024 Forecast:**\n"
-        for forecast in forecasts[:2]:
+        for forecast in forecasts:
             quarter = forecast.get('quarter', 'Unknown')
             arr = forecast.get('predicted_arr', 0)
             yoy = forecast.get('yoy_growth_percent', 0)
@@ -154,12 +159,15 @@ def format_company_prediction(prediction: Dict[str, Any]) -> str:
     
     insights = prediction.get('insights', {})
     forecasts = prediction.get('predictions', [])
+    trend_analysis = prediction.get('trend_analysis') or {}
+    edge_case_analysis = prediction.get('edge_case_analysis') or {}
+    prediction_method = prediction.get('prediction_method', 'Unknown')
     
     result = f"📊 **{prediction['company_name']}** Prediction Analysis\n"
     result += f"**Date:** {prediction['timestamp']}\n"
-    result += f"**Model:** {prediction['model_used']}\n\n"
+    result += f"**Model:** {prediction['model_used']}\n"
+    result += f"**Method:** {prediction_method}\n\n"
     
-    # Key metrics
     current_arr = insights.get('current_arr', 0)
     final_arr = insights.get('predicted_final_arr', 0)
     growth = insights.get('total_growth_percent', 0)
@@ -167,7 +175,17 @@ def format_company_prediction(prediction: Dict[str, Any]) -> str:
     result += f"**Growth Forecast:** {growth:.1f}% YoY\n"
     result += f"**ARR Trajectory:** ${current_arr:,.0f} → ${final_arr:,.0f}\n\n"
     
-    # Quarterly breakdown
+    if trend_analysis:
+        result += f"**Trend Detection:**\n"
+        result += f"  • Type: {trend_analysis.get('trend_type', 'Unknown')}\n"
+        result += f"  • Confidence: {trend_analysis.get('confidence', 'Unknown')}\n"
+        result += f"  • Reason: {trend_analysis.get('reason', 'N/A')}\n\n"
+    
+    if edge_case_analysis:
+        result += f"**Health Assessment:**\n"
+        result += f"  • Tier: {edge_case_analysis.get('health_tier', 'N/A')}\n"
+        result += f"  • Reasoning: {edge_case_analysis.get('reasoning', 'N/A')}\n\n"
+    
     if forecasts:
         result += "**Quarterly Forecast:**\n"
         for forecast in forecasts:
