@@ -1,11 +1,9 @@
 """
-LangChain Tools for Prediction Analysis
-Provides tools for the chat to analyze stored predictions
+Prediction Analysis Tools
+Provides functions for the chat to analyze stored predictions
 """
 
-from langchain.tools import Tool
 from prediction_memory import prediction_memory
-import json
 from typing import Dict, List, Any
 
 def analyze_recent_predictions(query: str) -> str:
@@ -347,11 +345,4 @@ def general_prediction_analysis(predictions: List[Dict[str, Any]]) -> str:
     result += f"  • Confidence interval analysis\n"
     
     return result
-
-# Create LangChain tools
-prediction_analysis_tool = Tool(
-    name="PredictionAnalyzer",
-    func=analyze_recent_predictions,
-    description="Analyze recent predictions. Can provide summaries, company-specific analysis, growth patterns, model performance, and confidence intervals. Use this when users ask about their predictions, forecast analysis, or model performance."
-)
 
