@@ -90,9 +90,44 @@ def _build_prediction_context() -> str:
             lines.append("")
             lines.append("Edge-case health assessment:")
             lines.append(f"  Health tier: {edge.get('health_tier', 'N/A')}")
-            lines.append(f"  Score: {edge.get('health_score', 'N/A')}")
+            lines.append(f"  Score: {edge.get('health_score', 'N/A')}/100")
             lines.append(f"  Reasoning: {edge.get('reasoning', 'N/A')}")
             lines.append(f"  Key assumption: {edge.get('key_assumption', 'N/A')}")
+
+            hm = edge.get("health_metrics") or {}
+            if hm:
+                lines.append("")
+                lines.append("Scoring metrics (5 pillars used to compute health score):")
+                lines.append(f"  1. ARR Growth YoY: {hm.get('arr_growth_yoy_pct', 'N/A'):.1f}%  [25 pts — >=40% top quartile, >=15% moderate]")
+                lines.append(f"  2. Net Revenue Retention (NRR): {hm.get('nrr', 'N/A'):.1f}%  [25 pts — >=120% excellent, >=100% good]")
+                lines.append(f"  3. CAC Payback: {hm.get('cac_payback_months', 'N/A'):.0f} months  [20 pts — <=18mo top quartile, <=36mo good]")
+                lines.append(f"  4. Rule of 40: {hm.get('rule_of_40', 'N/A'):.1f}% (growth {hm.get('arr_growth_yoy_pct', 0):.1f}% + EBITDA margin {hm.get('ebitda_margin', 0):.1f}%)  [20 pts — >=40% target]")
+                lines.append(f"  5. Runway: {hm.get('runway_months', 'N/A'):.0f} months  [10 pts — >=18mo strong, >=12mo adequate]")
+                lines.append(f"  Gross Margin: {hm.get('gross_margin', 'N/A')}%")
+
+            sb = edge.get("scoring_breakdown") or {}
+            strengths = sb.get("strengths", [])
+            weaknesses = sb.get("weaknesses", [])
+            benchmarks_met = sb.get("benchmarks_met", [])
+            benchmarks_missed = sb.get("benchmarks_missed", [])
+
+            if strengths:
+                lines.append("")
+                lines.append("Strengths:")
+                for s in strengths:
+                    lines.append(f"  + {s}")
+            if weaknesses:
+                lines.append("Weaknesses:")
+                for w in weaknesses:
+                    lines.append(f"  - {w}")
+            if benchmarks_met:
+                lines.append("Benchmarks met:")
+                for b in benchmarks_met:
+                    lines.append(f"  ✓ {b}")
+            if benchmarks_missed:
+                lines.append("Benchmarks missed:")
+                for b in benchmarks_missed:
+                    lines.append(f"  ✗ {b}")
 
         lines.append("=== END OF PREDICTION ===")
         return "\n".join(lines)
@@ -167,6 +202,12 @@ INSTRUCTIONS:
 - If prediction data is shown above, use it to answer the user's question with specific numbers.
 - When the user challenges a forecast ("shouldn't growth be higher?"), reason about it using
   the trend detection data, the input trajectory, and the prediction method.
+- When the user asks "why" or wants deeper analysis, reference the 5 scoring pillars
+  (ARR Growth, NRR, CAC Payback, Rule of 40, Runway), their actual values, and the
+  industry benchmarks they were scored against. Explain which pillars earned high/low points
+  and how that drove the health tier and growth projection.
+- Mention strengths and weaknesses by name. If metrics were estimated (not provided by the
+  user), note that they were inferred from the ARR pattern, not from actual data.
 - Be concise, professional, and specific. Refer to actual numbers, not generalities.
 - If no prediction data is available, offer to help the user make one via the /tier_based_forecast
   endpoint or by providing their quarterly ARR data.

@@ -222,13 +222,33 @@ def perform_tier_based_forecast(request: TierBasedRequest):
         
         # Add edge-case explanation when rule-based path was used
         if metadata.get('prediction_method') == 'Rule-Based Health Assessment':
+            ha = metadata.get('health_assessment') or {}
+            hm = metadata.get('health_metrics') or {}
             result['edge_case_analysis'] = {
                 "method": "Rule-Based Health Assessment",
                 "health_tier": metadata.get('health_tier', 'N/A'),
-                "health_score": (metadata.get('health_assessment') or {}).get('score', 'N/A'),
+                "health_score": ha.get('score', 'N/A'),
                 "reasoning": metadata.get('reasoning', 'N/A'),
                 "confidence": metadata.get('confidence', 'N/A'),
-                "key_assumption": metadata.get('key_assumption', 'N/A')
+                "key_assumption": metadata.get('key_assumption', 'N/A'),
+                "health_metrics": {
+                    "arr_growth_yoy_pct": hm.get('arr_growth_yoy_percent'),
+                    "nrr": hm.get('nrr'),
+                    "cac_payback_months": hm.get('cac_payback_months'),
+                    "rule_of_40": hm.get('rule_of_40'),
+                    "gross_margin": hm.get('gross_margin'),
+                    "ebitda_margin": hm.get('ebitda_margin'),
+                    "runway_months": hm.get('runway_months'),
+                    "cash_burn": hm.get('cash_burn'),
+                    "recent_momentum_qoq": hm.get('recent_momentum'),
+                },
+                "scoring_breakdown": {
+                    "strengths": ha.get('strengths', []),
+                    "weaknesses": ha.get('weaknesses', []),
+                    "benchmarks_met": ha.get('benchmarks_met', []),
+                    "benchmarks_missed": ha.get('benchmarks_missed', []),
+                },
+                "estimated_metrics": metadata.get('estimated_metrics', []),
             }
         # Backward-compatible field if older clients expect GPT-style info
         elif metadata.get('prediction_method') == 'GPT':
