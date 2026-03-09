@@ -74,9 +74,14 @@ def handle_chat(request: ChatRequest):
     currency_match = re.search(currency_pattern, request.message, re.IGNORECASE)
     
     # Check if user is asking about their RECENT prediction (priority check!)
-    prediction_question_keywords = ['my prediction', 'the prediction', 'my forecast', 'the forecast', 'my arr', 
-                                   'why', 'how come', 'explain', 'understand', 'doesn\'t make sense',
-                                   'q1', 'q2', 'q3', 'q4', 'quarter', 'my result', 'the result']
+    prediction_question_keywords = [
+        'my prediction', 'the prediction', 'prediction', 'my forecast', 'the forecast',
+        'my arr', 'the arr', 'reasoning', 'deeper', 'more detail',
+        'why', 'how come', 'explain', 'understand', 'doesn\'t make sense',
+        'q1', 'q2', 'q3', 'q4', 'quarter', 'my result', 'the result',
+        'most recent', 'just ran', 'just made', 'tell me about', 'what about',
+        'analysis', 'insights', 'what does it mean', 'break down', 'breakdown',
+    ]
     is_prediction_question = any(keyword in message for keyword in prediction_question_keywords)
     
     # Check for specific forecasting requests (NEW prediction)
@@ -93,14 +98,9 @@ def handle_chat(request: ChatRequest):
     # Check for algorithm/model explanation requests (check this first to avoid conflicts)
     algorithm_keywords = ['how does', 'how it works', 'algorithm', 'model works', 'feature injection', 'intelligent feature', 'tier based', 'lightgbm', 'gradient boosted']
     is_algorithm_question = any(keyword in message.lower() for keyword in algorithm_keywords)
-
-    
-    # Check for prediction analysis requests (exclude algorithm-related terms)
-    prediction_keywords = ['prediction', 'forecast', 'analysis', 'accuracy', 'confidence', 'growth pattern', 'performance']
-    is_prediction_analysis = any(keyword in message.lower() for keyword in prediction_keywords) and not is_algorithm_question
     
     # PRIORITY 1: User asking about their recent prediction (before asking for new data!)
-    if is_prediction_question and not is_forecast_request:
+    if is_prediction_question and not is_forecast_request and not is_algorithm_question:
         try:
             from prediction_analysis_tools import analyze_recent_predictions
             # Use the prediction analysis tool
@@ -316,19 +316,6 @@ def handle_chat(request: ChatRequest):
         return {
             "response": "I can help explain any SaaS metrics! Which specific metric would you like to know more about? Common ones include Magic Number, Burn Multiple, Rule of 40, Gross Margin, and more."
         }
-    
-
-    
-    # If user asks about predictions/analysis
-    elif is_prediction_analysis:
-        try:
-            from prediction_analysis_tools import analyze_recent_predictions
-            analysis = analyze_recent_predictions(message)
-            return {"response": analysis}
-        except Exception as e:
-            return {
-                "response": f"I can help analyze your predictions! I can provide:\n\n📊 **Prediction Analysis**: Summary of recent forecasts\n🏢 **Company Analysis**: Detailed breakdown for specific companies\n📈 **Growth Patterns**: Analysis of growth trends across predictions\n🎯 **Model Performance**: Accuracy and confidence metrics\n📋 **Confidence Intervals**: Uncertainty analysis\n\nTry asking: 'Show me my recent predictions' or 'Analyze the growth patterns' or 'What's the model accuracy?'"
-            }
     
     # If user mentions CSV (redirect to tier-based system)
     elif is_csv_request:

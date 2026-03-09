@@ -7,60 +7,39 @@ from prediction_memory import prediction_memory
 from typing import Dict, List, Any
 
 def analyze_recent_predictions(query: str) -> str:
-    """Analyze recent predictions based on user query"""
+    """Analyze predictions -- defaults to the LATEST prediction unless user asks for all."""
     try:
         recent_predictions = prediction_memory.get_recent_predictions(5)
         
         if not recent_predictions:
             return "No recent predictions available for analysis. Please make a prediction first by providing your company's quarterly ARR data."
         
-        # Get the most recent prediction (user's latest forecast)
-        latest_prediction = recent_predictions[0] if recent_predictions else None
-        
-        # Parse the query to understand what the user wants to know
+        latest_prediction = recent_predictions[0]
         query_lower = query.lower()
         
-        # Check if user is asking "why" or questioning the prediction
-        why_question_keywords = ['why', 'how come', 'explain', 'doesn\'t make sense', 'not', 'never']
-        is_why_question = any(keyword in query_lower for keyword in why_question_keywords)
+        # Only show multi-prediction views when explicitly requested
+        all_keywords = ['all predictions', 'all forecasts', 'summary of all', 'show all', 'list all', 'overview of all', 'history']
+        if any(kw in query_lower for kw in all_keywords):
+            return general_prediction_analysis(recent_predictions)
         
-        # If asking why/questioning, provide detailed reasoning from latest prediction
-        if is_why_question and latest_prediction:
-            return explain_latest_prediction(latest_prediction, query)
-        
-        if "summary" in query_lower or "overview" in query_lower:
+        if ("summary" in query_lower or "overview" in query_lower) and "all" in query_lower:
             return prediction_memory.get_prediction_summary()
         
-        elif "company" in query_lower:
-            # Extract company name from query
+        # Look up a specific company by name
+        if "company" in query_lower:
             words = query.split()
             company_name = None
             for i, word in enumerate(words):
                 if word.lower() in ["company", "for", "about"] and i + 1 < len(words):
                     company_name = words[i + 1]
                     break
-            
             if company_name:
                 prediction = prediction_memory.get_prediction_by_company(company_name)
                 if prediction:
                     return format_company_prediction(prediction)
-                else:
-                    return f"No prediction found for company '{company_name}'. Available companies: {', '.join([p['company_name'] for p in recent_predictions])}"
-            else:
-                return "Please specify which company you want to analyze. Available companies: " + ", ".join([p['company_name'] for p in recent_predictions])
         
-        elif "growth" in query_lower or "performance" in query_lower:
-            return analyze_growth_patterns(recent_predictions)
-        
-        elif "accuracy" in query_lower or "model" in query_lower:
-            return analyze_model_performance(recent_predictions)
-        
-        elif "confidence" in query_lower or "uncertainty" in query_lower:
-            return analyze_confidence_intervals(recent_predictions)
-        
-        else:
-            # General analysis
-            return general_prediction_analysis(recent_predictions)
+        # Everything else: focus on the latest prediction
+        return explain_latest_prediction(latest_prediction, query)
     
     except Exception as e:
         return f"Error analyzing predictions: {str(e)}"
