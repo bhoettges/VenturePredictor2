@@ -83,8 +83,12 @@ def _build_prediction_context() -> str:
             metrics = trend.get("metrics", {})
             if metrics:
                 lines.append(f"  Simple growth Q1->Q4: {metrics.get('simple_growth', 0):.2%}")
-                lines.append(f"  Recent momentum Q3->Q4: {metrics.get('recent_momentum', 0):.2%}")
-                lines.append(f"  Volatility: {metrics.get('volatility', 0):.3f}")
+                qoq = metrics.get("qoq_growth", [])
+                if len(qoq) == 3:
+                    lines.append(f"  QoQ growth rates: Q1->Q2 {qoq[0]:+.2%}, Q2->Q3 {qoq[1]:+.2%}, Q3->Q4 {qoq[2]:+.2%}")
+                lines.append(f"  Recent momentum (Q3->Q4): {metrics.get('recent_momentum', 0):.2%}")
+                lines.append(f"  Volatility (std dev of QoQ rates): {metrics.get('volatility', 0):.3f}")
+                lines.append(f"  Acceleration pattern: {metrics.get('acceleration', 'N/A')}")
 
         if edge:
             lines.append("")
@@ -198,8 +202,50 @@ Project info: {project_info_str}
 
 {prediction_context}
 
+=== SYSTEM METHODOLOGY (cite these specifics when the user asks "how" or "why") ===
+
+TREND DETECTION (6-factor analysis on the 4 input quarters):
+  Inputs computed from quarterly ARR (Q1-Q4):
+    - simple_growth = (Q4 - Q1) / Q1
+    - QoQ growth rates: qoq1=(Q2-Q1)/Q1, qoq2=(Q3-Q2)/Q2, qoq3=(Q4-Q3)/Q3
+    - volatility = standard deviation of [qoq1, qoq2, qoq3]  (numpy.std)
+    - recent_momentum = qoq3  (the most recent quarter-over-quarter change)
+    - acceleration = "accelerating" if qoq3>qoq2>qoq1, "decelerating" if qoq3<qoq2<qoq1, else "irregular"
+    - consistency checks: all_positive (all QoQ>0), all_negative (all QoQ<0)
+  Classification rules (checked in priority order):
+    1. CONSISTENT_DECLINE: all QoQ negative, OR (simple_growth < -15% AND momentum < -10%)
+    2. TREND_REVERSAL: overall positive but recent momentum < -15%, or vice versa
+    3. VOLATILE_IRREGULAR: volatility > 0.20 (i.e. std dev of QoQ rates exceeds 20pp)
+    4. FLAT_STAGNANT: |simple_growth| < 10% AND |avg QoQ| < 5%
+    5. CONSISTENT_GROWTH: all QoQ positive AND simple_growth > 20%
+    6. MODERATE_GROWTH: simple_growth > 0 (catch-all positive)
+    7. UNCLEAR: default
+  Routing: types 1-4 and 7 → Rule-Based Health Assessment; types 5-6 → ML model (LightGBM).
+
+HEALTH SCORING (5 pillars, 100 points total, benchmarks from McKinsey/BCG/BVP):
+  1. ARR Growth YoY (25 pts): >=40% = 25pts (top quartile), >=15% = 15pts, else 5pts
+  2. NRR (25 pts): >=120% = 25pts (excellent), >=100% = 15pts, else 5pts
+     If user didn't provide churn/expansion, NRR is estimated: 105% if growing, 95% if declining.
+  3. CAC Payback (20 pts): <=18mo = 20pts (top quartile), <=36mo = 12pts, else 5pts
+     Estimated from growth rate if S&M/customers not provided.
+  4. Rule of 40 (20 pts): growth% + EBITDA margin%. >=40 = 20pts, >=30 = 12pts, else 5pts
+     EBITDA margin estimated as gross_margin - 35% if gross margin provided, else default -10%.
+  5. Runway (10 pts): >=18mo = 10pts, >=12mo = 6pts, else 2pts
+  Tiers: >=75 pts = HIGH, >=50 pts = MODERATE, else LOW.
+
+GROWTH PROJECTION (applied after health tier classification):
+  HIGH tier: projected annual growth = 30-40% (with deceleration as company scales)
+  MODERATE tier: projected annual growth = 10-15% (aligned with industry median ~22%)
+  LOW tier: projected annual growth = -5% to +5% (conservative, factoring in weak fundamentals)
+  Quarterly: annual rate / 4, with 2% deceleration per successive quarter.
+
+=== END METHODOLOGY ===
+
 INSTRUCTIONS:
 - If prediction data is shown above, use it to answer the user's question with specific numbers.
+- When the user asks HOW something is calculated, cite the exact formula from the methodology
+  above and show the calculation with the actual values from this prediction. For example, if
+  asked about volatility, show: "Volatility = std([qoq1, qoq2, qoq3]) = std([X%, Y%, Z%]) = 0.227".
 - When the user challenges a forecast ("shouldn't growth be higher?"), reason about it using
   the trend detection data, the input trajectory, and the prediction method.
 - When the user asks "why" or wants deeper analysis, reference the 5 scoring pillars
@@ -209,11 +255,10 @@ INSTRUCTIONS:
 - Mention strengths and weaknesses by name. If metrics were estimated (not provided by the
   user), note that they were inferred from the ARR pattern, not from actual data.
 - Be concise, professional, and specific. Refer to actual numbers, not generalities.
+  NEVER give vague answers like "it could be due to various factors". Always ground your
+  response in the specific data and formulas available.
 - If no prediction data is available, offer to help the user make one via the /tier_based_forecast
   endpoint or by providing their quarterly ARR data.
-- You can explain SaaS metrics (Magic Number, Burn Multiple, Rule of 40, etc.) if asked.
-- For algorithm questions, explain the 3-stage system: tier-based input → intelligent feature
-  completion (top-50 peer matching) → LightGBM multi-horizon prediction.
 """
 
     conversation = [{"role": "system", "content": system_prompt}]
