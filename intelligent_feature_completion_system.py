@@ -384,6 +384,7 @@ class IntelligentFeatureCompletionSystem:
         
         # Reorder columns to match model expectations
         feature_vector = feature_vector[self.model_data['feature_cols']]
+        feature_vector = feature_vector.apply(pd.to_numeric, errors='coerce').fillna(0)
         
         # Make predictions
         model_pipeline = self.model_data['model_pipeline']
