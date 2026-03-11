@@ -45,8 +45,11 @@ class HybridPredictionSystem:
             'id_company': 'user_company'
         })
         
-        # Calculate growth rates
-        company_df['yoy_growth'] = company_df['cARR'].pct_change(4)
+        # Calculate growth rates from actual data (pct_change(4) is NaN with only 4 rows)
+        annual_growth = (arr_values[-1] - arr_values[0]) / arr_values[0] if arr_values[0] > 0 else 0
+        company_df['yoy_growth'] = annual_growth
+        company_df['ARR YoY Growth (in %)'] = annual_growth * 100
+        company_df['Revenue YoY Growth (in %)'] = annual_growth * 100
         company_df['qoq_growth'] = company_df['cARR'].pct_change(1)
         
         # Add Tier 2 data if provided
