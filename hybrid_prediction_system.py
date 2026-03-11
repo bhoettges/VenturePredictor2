@@ -160,7 +160,7 @@ class HybridPredictionSystem:
         print("\n🔮 STEP 2: PREDICTION")
         print("-" * 80)
         
-        if trend_analysis['use_gpt'] or routing_override["applied"]:
+        if True:  # Always use rule-based system; ML path disabled until feature completion is improved
             print("✅ Using rule-based health assessment (edge case detected)")
             
             # Use rule-based health predictor
