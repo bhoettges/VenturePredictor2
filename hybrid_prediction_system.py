@@ -27,14 +27,20 @@ class HybridPredictionSystem:
         self.rule_based_predictor = RuleBasedHealthPredictor()
     
     def create_company_dataframe(self, tier1_data: Dict, tier2_data: Optional[Dict] = None) -> pd.DataFrame:
-        """Create company dataframe from tier-based input."""
+        """Create company dataframe from tier-based input.
         
-        # Tier 1 data (required)
+        The training data stores monetary values in THOUSANDS (e.g. cARR=3456
+        means $3.456M).  User input arrives in absolute dollars, so we convert
+        all monetary values to thousands here to match the model's scale.
+        Growth rates, percentages, headcount and customer counts are unaffected.
+        """
+        
+        K = 1000.0  # conversion factor: absolute dollars -> thousands
+
         quarters = ['Q1 2023', 'Q2 2023', 'Q3 2023', 'Q4 2023']
-        arr_values = [tier1_data['q1_arr'], tier1_data['q2_arr'], 
-                     tier1_data['q3_arr'], tier1_data['q4_arr']]
+        arr_values = [tier1_data['q1_arr'] / K, tier1_data['q2_arr'] / K,
+                      tier1_data['q3_arr'] / K, tier1_data['q4_arr'] / K]
         
-        # Create base dataframe
         company_df = pd.DataFrame({
             'Quarter': quarters,
             'ARR_End_of_Quarter': arr_values,
@@ -45,14 +51,12 @@ class HybridPredictionSystem:
             'id_company': 'user_company'
         })
         
-        # Calculate growth rates from actual data (pct_change(4) is NaN with only 4 rows)
         annual_growth = (arr_values[-1] - arr_values[0]) / arr_values[0] if arr_values[0] > 0 else 0
         company_df['yoy_growth'] = annual_growth
         company_df['ARR YoY Growth (in %)'] = annual_growth * 100
         company_df['Revenue YoY Growth (in %)'] = annual_growth * 100
         company_df['qoq_growth'] = company_df['cARR'].pct_change(1)
         
-        # --- Derivable features: Revenue & ARR (directly from Tier 1) ---
         q1, q2, q3, q4 = arr_values
         hc = tier1_data['headcount']
         net_new_per_q = [q2 - q1, q3 - q2, q4 - q3, q4 - q3]
@@ -63,12 +67,11 @@ class HybridPredictionSystem:
         company_df['Net New ARR'] = net_new_per_q
         company_df['ARR / HC'] = [a / hc if hc > 0 else 0 for a in arr_values]
 
-        # --- Tier 2 data (provided or sensible defaults) ---
         t2 = tier2_data or {}
         gross_margin = t2.get('gross_margin', 75)
-        sm = t2.get('sales_marketing', q4 * 0.4)
-        cash_burn = t2.get('cash_burn', -q4 * 0.3)
-        customers = t2.get('customers', max(1, int(q4 / 5000)))
+        sm = t2.get('sales_marketing', q4 * 0.4 * K) / K   # convert to thousands
+        cash_burn = t2.get('cash_burn', -q4 * 0.3 * K) / K  # convert to thousands
+        customers = t2.get('customers', max(1, int(q4 * K / 5000)))
         churn_rate = t2.get('churn_rate', 0.05)
         expansion_rate = t2.get('expansion_rate', 0.10)
 
@@ -79,12 +82,11 @@ class HybridPredictionSystem:
         company_df['Churn & Reduction'] = [-a * churn_rate for a in arr_values]
         company_df['Expansion & Upsell'] = [a * expansion_rate for a in arr_values]
 
-        # --- Derivable efficiency metrics (from Tier 1 + Tier 2) ---
         company_df['Gross Profit'] = [a * gross_margin / 100 for a in arr_values]
         company_df['S&M as % of Revenue'] = [sm / q4 * 100 if q4 > 0 else 0] * 4
         magic = (net_new_per_q[-1] * 4) / sm if sm > 0 else 0
         company_df['LTM Magic Number (ARR)'] = [magic] * 4
-        ebitda_margin = gross_margin - 35  # rough EBITDA estimate
+        ebitda_margin = gross_margin - 35
         rule_of_40 = (annual_growth * 100) + ebitda_margin
         company_df['LTM Rule of 40% (ARR)'] = [rule_of_40] * 4
 
@@ -249,8 +251,10 @@ class HybridPredictionSystem:
         # Create company dataframe
         company_df = self.create_company_dataframe(tier1_data, tier2_data)
         
-        # Get ML predictions (model outputs YoY growth in PERCENT, e.g. 54.4 = 54.4%)
-        yoy_predictions_pct, similar_companies, feature_vector = self.ml_system.predict_with_completed_features(company_df)
+        # Model outputs YoY growth as FRACTIONS (e.g. 1.07 = 107% growth),
+        # matching the training target column "ARR YoY Growth (in %)" which
+        # stores pct_change values despite its name.
+        yoy_predictions, similar_companies, feature_vector = self.ml_system.predict_with_completed_features(company_df)
         
         arr_values = [tier1_data['q1_arr'], tier1_data['q2_arr'], 
                      tier1_data['q3_arr'], tier1_data['q4_arr']]
@@ -261,8 +265,7 @@ class HybridPredictionSystem:
         # for a growing company.  SaaS ARR is not seasonal, so we convert the
         # model's YoY signal into a sequential forward projection from Q4 2023.
 
-        yoy_fracs = [pct / 100.0 for pct in yoy_predictions_pct]
-        arr_yoy_implied = [base * (1 + yoy) for base, yoy in zip(arr_values, yoy_fracs)]
+        arr_yoy_implied = [base * (1 + yoy) for base, yoy in zip(arr_values, yoy_predictions)]
 
         total_2023 = sum(arr_values)
         total_2024_implied = sum(arr_yoy_implied)
@@ -292,7 +295,7 @@ class HybridPredictionSystem:
             'trend_analysis': trend_analysis,
             'model_accuracy': 'R² = 0.7966 (79.66%)',
             'similar_companies_found': len(similar_companies),
-            'raw_yoy_predictions_pct': list(yoy_predictions_pct),
+            'raw_yoy_predictions': [float(x) for x in yoy_predictions],
             'implied_annual_growth_pct': implied_annual_growth * 100,
             'implied_qoq_growth_pct': qoq_rate * 100
         }

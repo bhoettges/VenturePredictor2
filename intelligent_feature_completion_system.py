@@ -390,8 +390,8 @@ class IntelligentFeatureCompletionSystem:
         model_pipeline = self.model_data['model_pipeline']
         predictions = model_pipeline.predict(feature_vector)[0]
         
-        print(f"Raw predictions (YoY growth %): {predictions}")
-        print(f"Predictions formatted: {[f'{x:.1f}%' for x in predictions]}")
+        print(f"Raw predictions (YoY growth fractions): {predictions}")
+        print(f"Predictions as growth %: {[f'{x*100:.1f}%' for x in predictions]}")
         
         return predictions, similar_companies, feature_vector
 
