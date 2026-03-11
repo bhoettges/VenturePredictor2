@@ -269,7 +269,21 @@ class HybridPredictionSystem:
 
         total_2023 = sum(arr_values)
         total_2024_implied = sum(arr_yoy_implied)
-        implied_annual_growth = (total_2024_implied / total_2023) - 1 if total_2023 > 0 else 0
+        raw_annual_growth = (total_2024_implied / total_2023) - 1 if total_2023 > 0 else 0
+
+        # Anchor prediction to the company's actual trajectory.
+        # The VC-heavy training data skews toward hyper-growth; without
+        # moderation a steady 20% grower could be predicted to double.
+        # Allow the model to predict up to 2x the observed growth rate,
+        # with a floor of 10% so even low-growth companies get a signal.
+        observed_annual = (arr_values[-1] - arr_values[0]) / arr_values[0] if arr_values[0] > 0 else 0
+        if observed_annual > 0:
+            max_annual = observed_annual * 2.0
+        else:
+            max_annual = 0.20
+        max_annual = max(max_annual, 0.10)
+        implied_annual_growth = min(raw_annual_growth, max_annual)
+
         qoq_rate = (1 + implied_annual_growth) ** 0.25 - 1
 
         predictions = []
@@ -296,7 +310,9 @@ class HybridPredictionSystem:
             'model_accuracy': 'R² = 0.7966 (79.66%)',
             'similar_companies_found': len(similar_companies),
             'raw_yoy_predictions': [float(x) for x in yoy_predictions],
-            'implied_annual_growth_pct': implied_annual_growth * 100,
+            'raw_annual_growth_pct': raw_annual_growth * 100,
+            'observed_annual_growth_pct': observed_annual * 100,
+            'moderated_annual_growth_pct': implied_annual_growth * 100,
             'implied_qoq_growth_pct': qoq_rate * 100
         }
         
