@@ -88,6 +88,31 @@ class HybridPredictionSystem:
         rule_of_40 = (annual_growth * 100) + ebitda_margin
         company_df['LTM Rule of 40% (ARR)'] = [rule_of_40] * 4
 
+        # --- Lag and rolling features (must match training pipeline) ---
+        # The model was trained with these temporal features; without them,
+        # the feature completion system infers them from similar companies
+        # and the model loses sight of this company's actual growth momentum.
+        metrics_to_process = [
+            'cARR', 'Net New ARR', 'Cash Burn (OCF & ICF)', 'Gross Margin (in %)',
+            'Sales & Marketing', 'Headcount (HC)', 'Revenue YoY Growth (in %)'
+        ]
+        for col in metrics_to_process:
+            if col not in company_df.columns:
+                continue
+            for lag in [1, 2, 4]:
+                company_df[f'{col}_lag_{lag}'] = company_df[col].shift(lag)
+            company_df[f'{col}_roll_mean_4q'] = company_df[col].rolling(window=4, min_periods=1).mean().shift(1)
+            company_df[f'{col}_roll_std_4q'] = company_df[col].rolling(window=4, min_periods=1).std().shift(1)
+
+        sm_lag1 = company_df['Sales & Marketing'].shift(1)
+        net_new = company_df['Net New ARR']
+        company_df['Magic_Number'] = net_new / sm_lag1
+        company_df['Burn_Multiple'] = company_df['Cash Burn (OCF & ICF)'].abs() / net_new
+        company_df['HC_qoq_growth'] = company_df['Headcount (HC)'].pct_change(1)
+        company_df['ARR_per_Headcount'] = company_df['cARR'] / company_df['Headcount (HC)']
+
+        company_df = company_df.replace([np.inf, -np.inf], np.nan)
+
         return company_df
     
     def predict_with_hybrid(self, tier1_data: Dict, tier2_data: Optional[Dict] = None) -> Tuple[list, Dict]:
@@ -227,34 +252,49 @@ class HybridPredictionSystem:
         # Get ML predictions (model outputs YoY growth in PERCENT, e.g. 54.4 = 54.4%)
         yoy_predictions_pct, similar_companies, feature_vector = self.ml_system.predict_with_completed_features(company_df)
         
-        # Format predictions
-        predictions = []
         arr_values = [tier1_data['q1_arr'], tier1_data['q2_arr'], 
                      tier1_data['q3_arr'], tier1_data['q4_arr']]
         
-        for i, (quarter, yoy_growth_pct) in enumerate(zip(
-            ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
-            yoy_predictions_pct
-        )):
+        # The model predicts independent YoY growth for each quarter relative to
+        # the same quarter last year.  Applying these directly creates a visual
+        # "dip" because Q1_2024 = Q1_2023 * (1+yoy) can be lower than Q4_2023
+        # for a growing company.  SaaS ARR is not seasonal, so we convert the
+        # model's YoY signal into a sequential forward projection from Q4 2023.
+
+        yoy_fracs = [pct / 100.0 for pct in yoy_predictions_pct]
+        arr_yoy_implied = [base * (1 + yoy) for base, yoy in zip(arr_values, yoy_fracs)]
+
+        total_2023 = sum(arr_values)
+        total_2024_implied = sum(arr_yoy_implied)
+        implied_annual_growth = (total_2024_implied / total_2023) - 1 if total_2023 > 0 else 0
+        qoq_rate = (1 + implied_annual_growth) ** 0.25 - 1
+
+        predictions = []
+        current_arr = arr_values[-1]  # Q4 2023
+
+        for i, quarter in enumerate(['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024']):
+            current_arr = current_arr * (1 + qoq_rate)
             base_quarter_arr = arr_values[i]
-            yoy_growth_frac = yoy_growth_pct / 100.0
-            target_arr = base_quarter_arr * (1 + yoy_growth_frac)
-            
+            yoy_growth = (current_arr - base_quarter_arr) / base_quarter_arr if base_quarter_arr > 0 else 0
+
             predictions.append({
                 'Quarter': quarter,
-                'ARR': target_arr,
-                'Pessimistic_ARR': target_arr * 0.9,
-                'Optimistic_ARR': target_arr * 1.1,
-                'YoY_Growth': yoy_growth_frac,
-                'YoY_Growth_Percent': yoy_growth_pct,
-                'QoQ_Growth_Percent': 0  # Will be calculated later
+                'ARR': current_arr,
+                'Pessimistic_ARR': current_arr * 0.9,
+                'Optimistic_ARR': current_arr * 1.1,
+                'YoY_Growth': yoy_growth,
+                'YoY_Growth_Percent': yoy_growth * 100,
+                'QoQ_Growth_Percent': qoq_rate * 100
             })
         
         metadata = {
             'prediction_method': 'ML_Model',
             'trend_analysis': trend_analysis,
             'model_accuracy': 'R² = 0.7966 (79.66%)',
-            'similar_companies_found': len(similar_companies)
+            'similar_companies_found': len(similar_companies),
+            'raw_yoy_predictions_pct': list(yoy_predictions_pct),
+            'implied_annual_growth_pct': implied_annual_growth * 100,
+            'implied_qoq_growth_pct': qoq_rate * 100
         }
         
         return predictions, metadata
