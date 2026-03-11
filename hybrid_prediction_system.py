@@ -52,28 +52,42 @@ class HybridPredictionSystem:
         company_df['Revenue YoY Growth (in %)'] = annual_growth * 100
         company_df['qoq_growth'] = company_df['cARR'].pct_change(1)
         
-        # Add Tier 2 data if provided
-        if tier2_data:
-            company_df['Gross Margin (in %)'] = tier2_data.get('gross_margin', 75)
-            company_df['Sales & Marketing'] = tier2_data.get('sales_marketing', company_df['cARR'].iloc[-1] * 0.4)
-            company_df['Cash Burn (OCF & ICF)'] = tier2_data.get('cash_burn', -company_df['cARR'].iloc[-1] * 0.3)
-            company_df['Customers (EoP)'] = tier2_data.get('customers', int(company_df['cARR'].iloc[-1] / 5000))
-            
-            churn_rate = tier2_data.get('churn_rate', 0.05)
-            expansion_rate = tier2_data.get('expansion_rate', 0.10)
-            
-            company_df['Churn & Reduction'] = -company_df['cARR'] * churn_rate
-            company_df['Expansion & Upsell'] = company_df['cARR'] * expansion_rate
-        else:
-            # Use intelligent defaults
-            last_arr = company_df['cARR'].iloc[-1]
-            company_df['Gross Margin (in %)'] = 75
-            company_df['Sales & Marketing'] = last_arr * 0.4
-            company_df['Cash Burn (OCF & ICF)'] = -last_arr * 0.3
-            company_df['Customers (EoP)'] = int(last_arr / 5000)
-            company_df['Churn & Reduction'] = -last_arr * 0.05
-            company_df['Expansion & Upsell'] = last_arr * 0.10
-        
+        # --- Derivable features: Revenue & ARR (directly from Tier 1) ---
+        q1, q2, q3, q4 = arr_values
+        hc = tier1_data['headcount']
+        net_new_per_q = [q2 - q1, q3 - q2, q4 - q3, q4 - q3]
+
+        company_df['Revenue'] = arr_values
+        company_df['LTM Revenue'] = [sum(arr_values)] * 4
+        company_df['Revenue Run Rate (RRR)'] = arr_values
+        company_df['Net New ARR'] = net_new_per_q
+        company_df['ARR / HC'] = [a / hc if hc > 0 else 0 for a in arr_values]
+
+        # --- Tier 2 data (provided or sensible defaults) ---
+        t2 = tier2_data or {}
+        gross_margin = t2.get('gross_margin', 75)
+        sm = t2.get('sales_marketing', q4 * 0.4)
+        cash_burn = t2.get('cash_burn', -q4 * 0.3)
+        customers = t2.get('customers', max(1, int(q4 / 5000)))
+        churn_rate = t2.get('churn_rate', 0.05)
+        expansion_rate = t2.get('expansion_rate', 0.10)
+
+        company_df['Gross Margin (in %)'] = [gross_margin] * 4
+        company_df['Sales & Marketing'] = [sm] * 4
+        company_df['Cash Burn (OCF & ICF)'] = [cash_burn] * 4
+        company_df['Customers (EoP)'] = [customers] * 4
+        company_df['Churn & Reduction'] = [-a * churn_rate for a in arr_values]
+        company_df['Expansion & Upsell'] = [a * expansion_rate for a in arr_values]
+
+        # --- Derivable efficiency metrics (from Tier 1 + Tier 2) ---
+        company_df['Gross Profit'] = [a * gross_margin / 100 for a in arr_values]
+        company_df['S&M as % of Revenue'] = [sm / q4 * 100 if q4 > 0 else 0] * 4
+        magic = (net_new_per_q[-1] * 4) / sm if sm > 0 else 0
+        company_df['LTM Magic Number (ARR)'] = [magic] * 4
+        ebitda_margin = gross_margin - 35  # rough EBITDA estimate
+        rule_of_40 = (annual_growth * 100) + ebitda_margin
+        company_df['LTM Rule of 40% (ARR)'] = [rule_of_40] * 4
+
         return company_df
     
     def predict_with_hybrid(self, tier1_data: Dict, tier2_data: Optional[Dict] = None) -> Tuple[list, Dict]:
