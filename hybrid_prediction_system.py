@@ -224,31 +224,29 @@ class HybridPredictionSystem:
         # Create company dataframe
         company_df = self.create_company_dataframe(tier1_data, tier2_data)
         
-        # Get ML predictions
-        yoy_predictions, similar_companies, feature_vector = self.ml_system.predict_with_completed_features(company_df)
+        # Get ML predictions (model outputs YoY growth in PERCENT, e.g. 54.4 = 54.4%)
+        yoy_predictions_pct, similar_companies, feature_vector = self.ml_system.predict_with_completed_features(company_df)
         
         # Format predictions
         predictions = []
         arr_values = [tier1_data['q1_arr'], tier1_data['q2_arr'], 
                      tier1_data['q3_arr'], tier1_data['q4_arr']]
         
-        for i, (quarter, yoy_growth) in enumerate(zip(
+        for i, (quarter, yoy_growth_pct) in enumerate(zip(
             ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
-            yoy_predictions
+            yoy_predictions_pct
         )):
-            # YoY prediction relative to same quarter last year
             base_quarter_arr = arr_values[i]
-            # NOTE: `yoy_growth` is a YoY growth *rate* (e.g. 0.70 == +70%),
-            # not a multiplier. Convert to absolute ARR using (1 + rate).
-            target_arr = base_quarter_arr * (1 + yoy_growth)
+            yoy_growth_frac = yoy_growth_pct / 100.0
+            target_arr = base_quarter_arr * (1 + yoy_growth_frac)
             
             predictions.append({
                 'Quarter': quarter,
                 'ARR': target_arr,
                 'Pessimistic_ARR': target_arr * 0.9,
                 'Optimistic_ARR': target_arr * 1.1,
-                'YoY_Growth': yoy_growth,
-                'YoY_Growth_Percent': yoy_growth * 100,
+                'YoY_Growth': yoy_growth_frac,
+                'YoY_Growth_Percent': yoy_growth_pct,
                 'QoQ_Growth_Percent': 0  # Will be calculated later
             })
         
