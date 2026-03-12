@@ -1,9 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 import sys
+import logging
 import pandas as pd
 import io
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add the project root to the Python path
 project_root = Path(__file__).resolve().parents[2]
@@ -55,4 +58,5 @@ def chat_endpoint(request: ChatRequest):
         response = handle_chat(request)
         return response
     except Exception as e:
+        logger.error(f"Chat endpoint error: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"response": f"I encountered an error: {str(e)}"})

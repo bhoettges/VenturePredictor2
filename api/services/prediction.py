@@ -1,9 +1,12 @@
 import os
 import json
+import logging
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from pathlib import Path
 import sys
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parents[2]
 if str(project_root) not in sys.path:
@@ -176,8 +179,11 @@ def handle_chat(request: ChatRequest):
 
     prediction_context = _build_prediction_context()
 
-    from api.services.macro_analysis import get_macro_analysis
-    macro_data = get_macro_analysis()
+    try:
+        from api.services.macro_analysis import get_macro_analysis
+        macro_data = get_macro_analysis()
+    except Exception:
+        macro_data = {}
     gprh = macro_data.get('gprh', {}).get('traffic_light', 'Unknown')
     vix = macro_data.get('vix', {}).get('traffic_light', 'Unknown')
     move = macro_data.get('move', {}).get('traffic_light', 'Unknown')
@@ -267,7 +273,11 @@ INSTRUCTIONS:
             conversation.append({"role": msg["role"], "content": msg["content"]})
     conversation.append({"role": "user", "content": request.message})
 
-    response = llm.invoke(conversation).content
+    try:
+        response = llm.invoke(conversation).content
+    except Exception as e:
+        logger.error(f"LLM invoke failed: {e}", exc_info=True)
+        raise
     return {"response": response}
 
 
