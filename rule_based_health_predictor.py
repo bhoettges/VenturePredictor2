@@ -374,18 +374,22 @@ class RuleBasedHealthPredictor:
             confidence = "medium"
             
         else:  # LOW health
-            # Low health: Very conservative - minimal growth or decline
-            if metrics['nrr'] < 100:
-                # If NRR < 100%, company is losing net revenue - project flat or decline
-                projected_annual_growth = -0.05  # 5% decline
-                reasoning = f"Low health company with NRR <100% (losing net revenue). Projecting -5% annual decline as company must replace lost revenue just to maintain current levels."
-            elif arr_growth_yoy < 0:
-                # If already declining, project continued decline but deceleration
-                projected_annual_growth = max(arr_growth_yoy * 0.5, -0.10)  # Half the decline rate, max -10%
-                reasoning = f"Low health company in decline. Projecting continued decline at reduced rate ({projected_annual_growth*100:.0f}%) as company stabilizes."
+            # Low health: project based on severity of decline
+            if arr_growth_yoy < 0:
+                # Declining: use half the observed rate, floor at -25%
+                projected_annual_growth = max(arr_growth_yoy * 0.5, -0.25)
+                nrr_note = f" NRR is {metrics['nrr']:.0f}% (net revenue {'loss' if metrics['nrr'] < 100 else 'retention'})." if metrics.get('nrr') else ""
+                reasoning = (
+                    f"Low health company declining {arr_growth_yoy*100:.0f}% YoY.{nrr_note} "
+                    f"Projecting {projected_annual_growth*100:.0f}% annual decline (half the observed rate, "
+                    f"assuming some corrective action)."
+                )
+            elif metrics.get('nrr', 100) < 100:
+                # Not declining yet but NRR < 100 signals future trouble
+                projected_annual_growth = -0.05
+                reasoning = f"Low health company with NRR <100% ({metrics['nrr']:.0f}%). Revenue base is eroding. Projecting -5% annual decline."
             else:
-                # Low growth but positive
-                projected_annual_growth = 0.05  # 5% minimal growth
+                projected_annual_growth = 0.05
                 reasoning = f"Low health company with weak fundamentals. Projecting minimal 5% annual growth, acknowledging significant challenges."
             
             confidence = "medium"
