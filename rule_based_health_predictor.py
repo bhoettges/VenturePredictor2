@@ -82,11 +82,15 @@ class RuleBasedHealthPredictor:
         if tier2_data and 'churn_rate' in tier2_data and 'expansion_rate' in tier2_data:
             churn_rate = tier2_data['churn_rate']
             expansion_rate = tier2_data['expansion_rate']
+            # Normalize: frontend sends whole-number percentages (e.g. 5 for 5%)
+            # while some callers pass decimals (0.05). Convert to percentage points.
+            churn_pct = churn_rate if churn_rate >= 1 else churn_rate * 100
+            expansion_pct = expansion_rate if expansion_rate >= 1 else expansion_rate * 100
             # NRR = 100% - churn% + expansion%
-            nrr = 100 - (churn_rate * 100) + (expansion_rate * 100)
+            nrr = 100 - churn_pct + expansion_pct
             metrics['nrr'] = nrr
-            metrics['churn_rate'] = churn_rate
-            metrics['expansion_rate'] = expansion_rate
+            metrics['churn_rate'] = churn_pct / 100
+            metrics['expansion_rate'] = expansion_pct / 100
             metrics['_estimated_flags']['nrr'] = False
         else:
             # Estimate from ARR trend if no explicit churn/expansion
