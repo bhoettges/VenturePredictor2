@@ -70,7 +70,20 @@ class TrendDetector:
         
         # CLASSIFICATION LOGIC
         
-        # 1. CONSISTENT DECLINE (use GPT)
+        # 1. HIGHLY VOLATILE — highest priority.  When QoQ swings are
+        #    extreme the other trend signals (growth, momentum) are
+        #    unreliable, so catch this first.
+        if volatility > 0.20:
+            return {
+                "trend_type": "VOLATILE_IRREGULAR",
+                "use_gpt": True,
+                "confidence": "medium",
+                "reason": f"High volatility ({volatility:.2f}) - irregular pattern requires contextual analysis",
+                "metrics": metrics,
+                "user_message": "⚡ High volatility detected. Using contextual analysis."
+            }
+        
+        # 2. CONSISTENT DECLINE (use GPT)
         if all_negative or (simple_growth < self.DECLINE_THRESHOLD and recent_momentum < -0.10):
             return {
                 "trend_type": "CONSISTENT_DECLINE",
@@ -81,7 +94,7 @@ class TrendDetector:
                 "user_message": "⚠️ Company showing consistent decline. Using advanced analysis."
             }
         
-        # 2. RECENT REVERSAL (use GPT - ML won't capture this)
+        # 3. RECENT REVERSAL (use GPT - ML won't capture this)
         if (simple_growth > 0 and recent_momentum < -self.MOMENTUM_THRESHOLD) or \
            (simple_growth < 0 and recent_momentum > self.MOMENTUM_THRESHOLD):
             return {
@@ -91,17 +104,6 @@ class TrendDetector:
                 "reason": "Recent momentum contradicts overall trend - requires contextual analysis",
                 "metrics": metrics,
                 "user_message": "📊 Trend reversal detected. Using contextual analysis."
-            }
-        
-        # 3. HIGHLY VOLATILE (check BEFORE flat - priority!)
-        if volatility > 0.20:  # Lowered threshold from 0.25 to catch more volatile cases
-            return {
-                "trend_type": "VOLATILE_IRREGULAR",
-                "use_gpt": True,
-                "confidence": "medium",
-                "reason": f"High volatility ({volatility:.2f}) - irregular pattern requires contextual analysis",
-                "metrics": metrics,
-                "user_message": "⚡ High volatility detected. Using contextual analysis."
             }
         
         # 4. FLAT/STAGNANT (use GPT - ML expects growth)

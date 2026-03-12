@@ -333,7 +333,17 @@ class RuleBasedHealthPredictor:
         health_tier, health_assessment = self.assess_health_tier(metrics)
         
         # Step 3: Apply prediction rules based on health tier
-        current_arr = q4
+        import numpy as np
+        trend_type = trend_analysis.get('trend_type', '')
+        is_volatile = trend_type == 'VOLATILE_IRREGULAR'
+
+        # For volatile companies, Q4 alone is unreliable as a base.
+        # Use the median of all four quarters — robust to outlier quarters.
+        if is_volatile:
+            current_arr = float(np.median([q1, q2, q3, q4]))
+        else:
+            current_arr = q4
+
         arr_growth_yoy = metrics['arr_growth_yoy']
         recent_momentum = metrics['recent_momentum']
         
@@ -379,15 +389,30 @@ class RuleBasedHealthPredictor:
                 reasoning = f"Low health company with weak fundamentals. Projecting minimal 5% annual growth, acknowledging significant challenges."
             
             confidence = "medium"
-        
+
+        # For volatile patterns, override: the (Q4-Q1)/Q1 growth figure is
+        # misleading because Q4 may be a trough or peak.  Use a conservative
+        # neutral-to-moderate projection anchored to the median base ARR.
+        if is_volatile:
+            median_arr = float(np.median([q1, q2, q3, q4]))
+            mean_arr = float(np.mean([q1, q2, q3, q4]))
+            projected_annual_growth = 0.05  # conservative 5% for unpredictable companies
+            reasoning = (
+                f"Highly volatile ARR pattern (volatility {trend_analysis['metrics']['volatility']:.2f}). "
+                f"Projecting from median ARR (${median_arr:,.0f}) with conservative 5% annual growth. "
+                f"Wider confidence bands (+/-25%) reflect high uncertainty."
+            )
+            confidence = "low"
+
         # Convert annual growth to quarterly growth (approximate)
         # Annual growth = (1 + quarterly_growth)^4 - 1
         # So quarterly_growth ≈ annual_growth / 4 (simplified for small growth rates)
         quarterly_growth = projected_annual_growth / 4
+
+        band = 0.25 if is_volatile else 0.10
         
         # Apply growth with slight deceleration over quarters
         predictions = []
-        current_arr = q4
         
         for i, quarter in enumerate(['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024']):
             # Apply quarterly growth with slight deceleration
@@ -401,8 +426,8 @@ class RuleBasedHealthPredictor:
             predictions.append({
                 'Quarter': quarter,
                 'ARR': next_arr,
-                'Pessimistic_ARR': next_arr * 0.9,
-                'Optimistic_ARR': next_arr * 1.1,
+                'Pessimistic_ARR': next_arr * (1 - band),
+                'Optimistic_ARR': next_arr * (1 + band),
                 'YoY_Growth': yoy_growth,
                 'YoY_Growth_Percent': yoy_growth * 100,
                 'QoQ_Growth_Percent': growth_factor * 100
