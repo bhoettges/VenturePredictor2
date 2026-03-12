@@ -220,15 +220,19 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             }
         }
         
-        # Add edge-case explanation when rule-based path was used
-        if metadata.get('prediction_method') == 'Rule-Based Health Assessment':
-            ha = metadata.get('health_assessment') or {}
-            hm = metadata.get('health_metrics') or {}
+        # Always attach health scorecard so the chatbot has real numbers
+        ha = metadata.get('health_assessment') or {}
+        hm = metadata.get('health_metrics') or {}
+        estimated_flags = hm.get('_estimated_flags', {})
+        estimated_list = [k for k, v in estimated_flags.items() if v]
+
+        if ha or hm:
+            is_edge = metadata.get('prediction_method') == 'Rule-Based Health Assessment'
             result['edge_case_analysis'] = {
-                "method": "Rule-Based Health Assessment",
+                "method": metadata.get('prediction_method', 'ML_Model'),
                 "health_tier": metadata.get('health_tier', 'N/A'),
                 "health_score": ha.get('score', 'N/A'),
-                "reasoning": metadata.get('reasoning', 'N/A'),
+                "reasoning": metadata.get('reasoning', 'Forecasted via ML model') if is_edge else 'Health scorecard computed alongside ML forecast',
                 "confidence": metadata.get('confidence', 'N/A'),
                 "key_assumption": metadata.get('key_assumption', 'N/A'),
                 "health_metrics": {
@@ -248,15 +252,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
                     "benchmarks_met": ha.get('benchmarks_met', []),
                     "benchmarks_missed": ha.get('benchmarks_missed', []),
                 },
-                "estimated_metrics": metadata.get('estimated_metrics', []),
-            }
-        # Backward-compatible field if older clients expect GPT-style info
-        elif metadata.get('prediction_method') == 'GPT':
-            result['gpt_analysis'] = {
-                "reasoning": metadata.get('gpt_reasoning', 'N/A'),
-                "confidence": metadata.get('gpt_confidence', 'N/A'),
-                "key_assumption": metadata.get('gpt_assumption', 'N/A'),
-                "fallback_used": metadata.get('fallback_used', False)
+                "estimated_metrics": estimated_list,
             }
         
         # Generate LLM narrative alongside the structured prediction

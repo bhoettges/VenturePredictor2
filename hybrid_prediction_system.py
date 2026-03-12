@@ -227,6 +227,19 @@ class HybridPredictionSystem:
             print("✅ Using ML model (standard growth pattern)")
             predictions, metadata = self._use_ml_model(tier1_data, tier2_data, trend_analysis)
             metadata['routing_override'] = routing_override
+
+            # Compute health scorecard alongside ML predictions so the
+            # chatbot always has concrete pillar values instead of hallucinating.
+            try:
+                health_metrics = self.rule_based_predictor.calculate_health_metrics(
+                    q1, q2, q3, q4, tier2_data
+                )
+                health_tier, health_assessment = self.rule_based_predictor.assess_health_tier(health_metrics)
+                metadata['health_metrics'] = health_metrics
+                metadata['health_assessment'] = health_assessment
+                metadata['health_tier'] = health_tier
+            except Exception:
+                pass
         
         # Step 3: Calculate QoQ growth for all predictions
         current_arr = q4

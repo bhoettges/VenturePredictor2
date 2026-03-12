@@ -95,21 +95,26 @@ def _build_prediction_context() -> str:
 
         if edge:
             lines.append("")
-            lines.append("Edge-case health assessment:")
+            lines.append("Health scorecard:")
             lines.append(f"  Health tier: {edge.get('health_tier', 'N/A')}")
             lines.append(f"  Score: {edge.get('health_score', 'N/A')}/100")
-            lines.append(f"  Reasoning: {edge.get('reasoning', 'N/A')}")
-            lines.append(f"  Key assumption: {edge.get('key_assumption', 'N/A')}")
+
+            estimated = edge.get("estimated_metrics") or []
+            if estimated:
+                lines.append(f"  ESTIMATED metrics (not provided by user, inferred from ARR pattern): {', '.join(estimated)}")
 
             hm = edge.get("health_metrics") or {}
             if hm:
+                def _tag(key):
+                    return " [ESTIMATED]" if key in estimated else " [PROVIDED]"
+
                 lines.append("")
-                lines.append("Scoring metrics (5 pillars used to compute health score):")
-                lines.append(f"  1. ARR Growth YoY: {hm.get('arr_growth_yoy_pct', 'N/A'):.1f}%  [25 pts — >=40% top quartile, >=15% moderate]")
-                lines.append(f"  2. Net Revenue Retention (NRR): {hm.get('nrr', 'N/A'):.1f}%  [25 pts — >=120% excellent, >=100% good]")
-                lines.append(f"  3. CAC Payback: {hm.get('cac_payback_months', 'N/A'):.0f} months  [20 pts — <=18mo top quartile, <=36mo good]")
-                lines.append(f"  4. Rule of 40: {hm.get('rule_of_40', 'N/A'):.1f}% (growth {hm.get('arr_growth_yoy_pct', 0):.1f}% + EBITDA margin {hm.get('ebitda_margin', 0):.1f}%)  [20 pts — >=40% target]")
-                lines.append(f"  5. Runway: {hm.get('runway_months', 'N/A'):.0f} months  [10 pts — >=18mo strong, >=12mo adequate]")
+                lines.append("Scoring metrics (5 pillars, 100 points total):")
+                lines.append(f"  1. ARR Growth YoY: {hm.get('arr_growth_yoy_pct', 'N/A'):.1f}%  [25 pts — >=40% top quartile, >=15% moderate]{_tag('arr_growth')}")
+                lines.append(f"  2. Net Revenue Retention (NRR): {hm.get('nrr', 'N/A'):.1f}%  [25 pts — >=120% excellent, >=100% good]{_tag('nrr')}")
+                lines.append(f"  3. CAC Payback: {hm.get('cac_payback_months', 'N/A'):.0f} months  [20 pts — <=18mo top quartile, <=36mo good]{_tag('cac_payback')}")
+                lines.append(f"  4. Rule of 40: {hm.get('rule_of_40', 'N/A'):.1f}% (growth {hm.get('arr_growth_yoy_pct', 0):.1f}% + EBITDA margin {hm.get('ebitda_margin', 0):.1f}%)  [20 pts — >=40% target]{_tag('rule_of_40')}")
+                lines.append(f"  5. Runway: {hm.get('runway_months', 'N/A'):.0f} months  [10 pts — >=18mo strong, >=12mo adequate]{_tag('runway')}")
                 lines.append(f"  Gross Margin: {hm.get('gross_margin', 'N/A')}%")
 
             sb = edge.get("scoring_breakdown") or {}
@@ -248,6 +253,12 @@ GROWTH PROJECTION (applied after health tier classification):
 === END METHODOLOGY ===
 
 INSTRUCTIONS:
+- ONLY use data that is explicitly shown in the prediction context above. If a metric, score,
+  or value is NOT listed above, say "this metric was not computed for this prediction" — do NOT
+  invent, estimate, or infer values that are not shown. This is critical for user trust.
+- Metrics tagged [ESTIMATED] were not provided by the user and were inferred from the ARR
+  pattern. Always disclose this when citing them: e.g. "NRR is estimated at 107% (inferred
+  from the growth trajectory, not provided by the user)."
 - If prediction data is shown above, use it to answer the user's question with specific numbers.
 - When the user asks HOW something is calculated, cite the exact formula from the methodology
   above and show the calculation with the actual values from this prediction. For example, if
