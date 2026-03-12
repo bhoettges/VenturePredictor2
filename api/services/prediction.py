@@ -75,7 +75,7 @@ def _build_prediction_context() -> str:
         lines.append("")
         lines.append(f"Overall: ${current_arr:,.0f} -> ${final_arr:,.0f} ({growth:+.1f}% total growth)")
         lines.append(f"Data provided: {insights.get('tier_used', 'Tier 1 Only')}")
-        lines.append(f"Confidence band: +/-10% on all quarters")
+        lines.append(f"Confidence band: {insights.get('confidence_intervals', '±10% on all predictions')}")
 
         if trend:
             lines.append("")

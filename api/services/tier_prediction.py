@@ -130,6 +130,10 @@ def perform_tier_based_forecast(request: TierBasedRequest):
         # Get predictions with trend analysis
         predictions, metadata = hybrid_system.predict_with_hybrid(tier1_data, tier2_data)
         
+        # Determine confidence band from trend type
+        trend_type = metadata.get('trend_analysis', {}).get('trend_type', '')
+        band_pct = 25 if trend_type == 'VOLATILE_IRREGULAR' else 10
+
         # Format response with QoQ growth calculated from honest model predictions
         forecast_results = []
         current_arr = request.q4_arr  # Start from Q4 2023
@@ -144,8 +148,8 @@ def perform_tier_based_forecast(request: TierBasedRequest):
                 "pessimistic_arr": pred['Pessimistic_ARR'],
                 "optimistic_arr": pred['Optimistic_ARR'],
                 "qoq_growth_percent": qoq_growth,
-                "yoy_growth_percent": pred['YoY_Growth_Percent'],  # Model's honest YoY prediction
-                "confidence_interval": f"±10%"
+                "yoy_growth_percent": pred['YoY_Growth_Percent'],
+                "confidence_interval": f"±{band_pct}%"
             })
             
             current_arr = pred['ARR']  # Update for next quarter
@@ -172,7 +176,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'final_yoy_growth_percent': predictions[-1]['YoY_Growth_Percent'],
             'tier_used': 'Tier 1 + Tier 2' if tier2_data else 'Tier 1 Only',
             'model_accuracy': 'R² = 0.7966 (79.66%)',
-            'confidence_intervals': '±10% on all predictions',
+            'confidence_intervals': f'±{band_pct}% on all predictions',
             'user_input_arr_2023': {
                 'q1': request.q1_arr,
                 'q2': request.q2_arr,
