@@ -1,0 +1,91 @@
+/* Minimal print-friendly styling for Pandoc HTML -> Chrome PDF */
+
+@page {
+  margin: 24mm 18mm 24mm 18mm;
+}
+
+html {
+  font-size: 12pt;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.35;
+  color: #111;
+}
+
+h1, h2, h3 {
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  margin-top: 1.2em;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.2em;
+}
+
+h3 {
+  font-size: 13pt;
+  margin-top: 1.0em;
+}
+
+code, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10.5pt;
+}
+
+pre {
+  padding: 10px 12px;
+  background: #f6f8fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow-x: auto;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 12px;
+  margin-left: 0;
+  color: #374151;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0 16px 0;
+  page-break-inside: avoid;
+}
+
+th, td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+th {
+  background: #f3f4f6;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 10px auto 14px auto;
+}
+
+.small {
+  font-size: 10.5pt;
+  color: #444;
+}
+
+.pagebreak {
+  page-break-before: always;
+}
+

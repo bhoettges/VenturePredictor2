@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Balthasar H. (Student ID: 000807194) — Reichman University" />
+  <meta name="dcterms.date" content="2025-09-01" />
+  <title>Intelligent Forecasting: An AI-Powered Tool for Predicting Startup Revenue in Venture Capital</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="style.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Intelligent Forecasting: An AI-Powered Tool for Predicting Startup Revenue in Venture Capital</h1>
+<p class="subtitle">Technical Report (10–15 pages)</p>
+<p class="author">Balthasar H. (Student ID: 000807194) — Reichman University</p>
+<p class="date">September 1, 2025</p>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#executive-summary"><span class="toc-section-number">0.1</span> Executive Summary</a></li>
+<li><a href="#problem-statement-and-success-criteria"><span class="toc-section-number">0.2</span> 1. Problem Statement and Success Criteria</a>
+<ul>
+<li><a href="#prediction-task"><span class="toc-section-number">0.2.1</span> 1.1 Prediction task</a></li>
+<li><a href="#real-world-constraint-minimal-user-input"><span class="toc-section-number">0.2.2</span> 1.2 Real-world constraint: minimal user input</a></li>
+<li><a href="#success-criteria-vc-ml"><span class="toc-section-number">0.2.3</span> 1.3 Success criteria (VC + ML)</a></li>
+</ul></li>
+<li><a href="#data-overview"><span class="toc-section-number">0.3</span> 2. Data Overview</a>
+<ul>
+<li><a href="#dataset-summary-production-dataset"><span class="toc-section-number">0.3.1</span> 2.1 Dataset summary (production dataset)</a></li>
+<li><a href="#bias-and-representativeness"><span class="toc-section-number">0.3.2</span> 2.2 Bias and representativeness</a></li>
+<li><a href="#missingness-and-why-it-matters"><span class="toc-section-number">0.3.3</span> 2.3 Missingness and why it matters</a></li>
+<li><a href="#heavy-tails-and-volatility"><span class="toc-section-number">0.3.4</span> 2.4 Heavy tails and volatility</a></li>
+</ul></li>
+<li><a href="#system-architecture-end-to-end"><span class="toc-section-number">0.4</span> 3. System Architecture (End-to-End)</a>
+<ul>
+<li><a href="#production-dataflow"><span class="toc-section-number">0.4.1</span> 3.1 Production dataflow</a></li>
+<li><a href="#api-surface"><span class="toc-section-number">0.4.2</span> 3.2 API surface</a></li>
+</ul></li>
+<li><a href="#tier-based-input-contract"><span class="toc-section-number">0.5</span> 4. Tier-Based Input Contract</a>
+<ul>
+<li><a href="#tier-1-required"><span class="toc-section-number">0.5.1</span> 4.1 Tier 1 (required)</a></li>
+<li><a href="#tier-2-optional"><span class="toc-section-number">0.5.2</span> 4.2 Tier 2 (optional)</a></li>
+</ul></li>
+<li><a href="#intelligent-feature-completion-core-contribution"><span class="toc-section-number">0.6</span> 5. Intelligent Feature Completion (Core Contribution)</a>
+<ul>
+<li><a href="#why-feature-completion-is-necessary"><span class="toc-section-number">0.6.1</span> 5.1 Why feature completion is necessary</a></li>
+<li><a href="#similarity-matching"><span class="toc-section-number">0.6.2</span> 5.2 Similarity matching</a></li>
+<li><a href="#robust-inference-via-weighted-median"><span class="toc-section-number">0.6.3</span> 5.3 Robust inference via weighted median</a></li>
+<li><a href="#default-priors-by-arr-scale"><span class="toc-section-number">0.6.4</span> 5.4 Default priors by ARR scale</a></li>
+</ul></li>
+<li><a href="#hybrid-forecasting-ml-route-rule-based-health-assessment"><span class="toc-section-number">0.7</span> 6. Hybrid Forecasting: ML Route + Rule-Based Health Assessment</a>
+<ul>
+<li><a href="#why-a-hybrid-system-exists"><span class="toc-section-number">0.7.1</span> 6.1 Why a hybrid system exists</a></li>
+<li><a href="#trend-detection-and-routing-6-factor-analysis"><span class="toc-section-number">0.7.2</span> 6.2 Trend detection and routing (6-factor analysis)</a></li>
+<li><a href="#rule-based-health-assessment-edge-case-method"><span class="toc-section-number">0.7.3</span> 6.3 Rule-based health assessment (edge-case method)</a></li>
+</ul></li>
+<li><a href="#model-lightgbm-multi-output-forecasting"><span class="toc-section-number">0.8</span> 7. Model: LightGBM Multi-Output Forecasting</a>
+<ul>
+<li><a href="#model-choice"><span class="toc-section-number">0.8.1</span> 7.1 Model choice</a></li>
+<li><a href="#forecast-horizons-and-evaluation"><span class="toc-section-number">0.8.2</span> 7.2 Forecast horizons and evaluation</a></li>
+<li><a href="#feature-importance"><span class="toc-section-number">0.8.3</span> 7.3 Feature importance</a></li>
+</ul></li>
+<li><a href="#uncertainty-quantification-decision-support-range"><span class="toc-section-number">0.9</span> 8. Uncertainty Quantification (Decision-Support Range)</a></li>
+<li><a href="#macroeconomic-context-module"><span class="toc-section-number">0.10</span> 9. Macroeconomic Context Module</a></li>
+<li><a href="#limitations-and-threats-to-validity"><span class="toc-section-number">0.11</span> 10. Limitations and Threats to Validity</a></li>
+<li><a href="#conclusion"><span class="toc-section-number">0.12</span> 11. Conclusion</a>
+<ul>
+<li><a href="#appendix-a.-how-to-reproduce-figures"><span class="toc-section-number">0.12.1</span> Appendix A. How to reproduce figures</a></li>
+</ul></li>
+</ul>
+</nav>
+<h2 data-number="0.1" id="executive-summary"><span class="header-section-number">0.1</span> Executive Summary</h2>
+<p>Venture capital (VC) investment decisions are made under extreme uncertainty. Early-stage companies often lack stable financial histories, and the available data is sparse, heterogeneous, and biased toward specific geographies and sectors. This project delivers a <strong>production-oriented forecasting system</strong> that predicts a startup’s <strong>next four quarters of ARR (Annual Recurring Revenue)</strong> using a LightGBM-based model, while explicitly addressing the core constraint of real-world usage: <strong>users cannot provide 100+ structured features</strong> at prediction time.</p>
+<p>The shipped system consists of:</p>
+<ul>
+<li><strong>Tier-based input contract</strong>: users provide a minimal set of inputs (Tier 1) and optional advanced metrics (Tier 2).</li>
+<li><strong>Intelligent Feature Completion</strong>: the system constructs a realistic full feature vector by identifying similar companies in the historical dataset and imputing missing metrics using robust statistics.</li>
+<li><strong>Hybrid forecasting</strong>: a routing layer detects non-standard trajectories (decline, stagnation, volatility) and falls back to a transparent <strong>Rule-Based Health Assessment</strong> that produces explainable projections using industry benchmarks.</li>
+<li><strong>FastAPI service</strong>: the system is exposed via production-ready API endpoints for single-company forecasts, batch CSV processing, chat-based explanation, and macro context.</li>
+</ul>
+<p>On a held-out test set, the LightGBM model achieves <strong>overall (R^2 )</strong>. Performance varies by horizon (e.g., (R^2 ) for the nearest quarter and (R^2 ) for the fourth quarter ahead), which is expected for multi-step forecasting in volatile startup environments. Predictions are returned with a pragmatic <strong>±10% decision-support range</strong> to help VC users reason about risk and scenario bounds.</p>
+<h2 data-number="0.2" id="problem-statement-and-success-criteria"><span class="header-section-number">0.2</span> 1. Problem Statement and Success Criteria</h2>
+<h3 data-number="0.2.1" id="prediction-task"><span class="header-section-number">0.2.1</span> 1.1 Prediction task</h3>
+<p>Given a company’s recent ARR trajectory (four quarters), headcount, and sector (plus optional Tier 2 metrics), forecast:</p>
+<ul>
+<li><strong>Q+1 to Q+4 ARR</strong> (four quarters ahead), and</li>
+<li>Growth diagnostics (QoQ and YoY rates) and uncertainty bounds.</li>
+</ul>
+<p>Internally, the core model predicts <strong>YoY ARR growth rates for each of the next four quarters</strong> and converts those into absolute ARR by applying predicted YoY growth to last year’s corresponding quarter.</p>
+<h3 data-number="0.2.2" id="real-world-constraint-minimal-user-input"><span class="header-section-number">0.2.2</span> 1.2 Real-world constraint: minimal user input</h3>
+<p>The training dataset contains many features per company-quarter, but a real VC workflow cannot assume that an investor (or founder) will provide that full feature set. The central engineering requirement is therefore:</p>
+<blockquote>
+<p>Enable high-quality predictions from minimal inputs without producing feature vectors that are out-of-distribution relative to training data.</p>
+</blockquote>
+<h3 data-number="0.2.3" id="success-criteria-vc-ml"><span class="header-section-number">0.2.3</span> 1.3 Success criteria (VC + ML)</h3>
+<ul>
+<li><strong>Accuracy</strong>: strong predictive fit on held-out data (R²/MAE), with horizon-wise reporting.</li>
+<li><strong>Robustness under missingness</strong>: stable results with Tier 1 only; improved fidelity with Tier 2.</li>
+<li><strong>Behavior on edge cases</strong>: declining, flat, and volatile companies should not receive unrealistic “high-growth” forecasts.</li>
+<li><strong>Explainability</strong>: routing decisions and rule-based projections must be auditable for investment decision support.</li>
+<li><strong>Operational readiness</strong>: API deployment, validation, error handling, and latency appropriate for interactive use.</li>
+</ul>
+<h2 data-number="0.3" id="data-overview"><span class="header-section-number">0.3</span> 2. Data Overview</h2>
+<h3 data-number="0.3.1" id="dataset-summary-production-dataset"><span class="header-section-number">0.3.1</span> 2.1 Dataset summary (production dataset)</h3>
+<p>The production model uses <code>202402_Copy.csv</code>:</p>
+<ul>
+<li><strong>Observations</strong>: 5,085 company-quarters</li>
+<li><strong>Companies</strong>: 354</li>
+<li><strong>Raw columns</strong>: 122</li>
+</ul>
+<p>This dataset is <strong>not iid</strong>: it contains repeated measures per company and reflects venture-backed dynamics (high growth, volatility, down periods, and reporting inconsistency).</p>
+<h3 data-number="0.3.2" id="bias-and-representativeness"><span class="header-section-number">0.3.2</span> 2.2 Bias and representativeness</h3>
+<p>The dataset is geographically concentrated (US and a small set of other ecosystems dominate). A representative snapshot is shown in the country distribution figure.</p>
+<figure>
+<img src="figures/fig_04_country_distribution.png" alt="Figure 4. Top countries in training data." /><figcaption aria-hidden="true">Figure 4. Top countries in training data.</figcaption>
+</figure>
+<p>Sectors are also concentrated in software/tech verticals. The production API further constrains sectors to a consolidated list for validation and robustness.</p>
+<figure>
+<img src="figures/fig_05_sector_distribution.png" alt="Figure 5. Top sectors in training data." /><figcaption aria-hidden="true">Figure 5. Top sectors in training data.</figcaption>
+</figure>
+<h3 data-number="0.3.3" id="missingness-and-why-it-matters"><span class="header-section-number">0.3.3</span> 2.3 Missingness and why it matters</h3>
+<p>Many features are sparse (often missing in 80–90%+ of rows). This strongly influences both model training and system design.</p>
+<figure>
+<img src="figures/fig_01_missingness_top30.png" alt="Figure 1. Top-30 feature missingness in training data." /><figcaption aria-hidden="true">Figure 1. Top-30 feature missingness in training data.</figcaption>
+</figure>
+<p>Key implication: naïve “fill missing with 0” at inference creates unrealistic inputs and causes distribution shift. This observation directly motivated <strong>Intelligent Feature Completion</strong>.</p>
+<h3 data-number="0.3.4" id="heavy-tails-and-volatility"><span class="header-section-number">0.3.4</span> 2.4 Heavy tails and volatility</h3>
+<p>ARR and growth metrics are heavy-tailed, spanning orders of magnitude. This motivates:</p>
+<ul>
+<li>logarithmic similarity for peer matching,</li>
+<li>robust feature imputation (weighted medians), and</li>
+<li>a hybrid path for non-standard trajectories.</li>
+</ul>
+<figure>
+<img src="figures/fig_02_carr_log_distribution.png" alt="Figure 2. ARR distribution (log scale)." /><figcaption aria-hidden="true">Figure 2. ARR distribution (log scale).</figcaption>
+</figure>
+<figure>
+<img src="figures/fig_03_yoy_growth_distribution.png" alt="Figure 3. ARR YoY growth distribution (clipped for readability)." /><figcaption aria-hidden="true">Figure 3. ARR YoY growth distribution (clipped for readability).</figcaption>
+</figure>
+<h2 data-number="0.4" id="system-architecture-end-to-end"><span class="header-section-number">0.4</span> 3. System Architecture (End-to-End)</h2>
+<h3 data-number="0.4.1" id="production-dataflow"><span class="header-section-number">0.4.1</span> 3.1 Production dataflow</h3>
+<p>The production API integrates a small number of “active” modules:</p>
+<ol type="1">
+<li>Request validation (FastAPI + Pydantic)</li>
+<li>Tier-based input parsing</li>
+<li>Trend detection and routing</li>
+<li>Either:
+<ul>
+<li><ol type="A">
+<li>ML route: intelligent feature completion → LightGBM prediction, or</li>
+</ol></li>
+<li><ol start="2" type="A">
+<li>Edge-case route: rule-based health assessment projection</li>
+</ol></li>
+</ul></li>
+<li>Post-processing: QoQ, YoY, scenario bounds (±10%), response formatting</li>
+</ol>
+<h3 data-number="0.4.2" id="api-surface"><span class="header-section-number">0.4.2</span> 3.2 API surface</h3>
+<p>Core endpoints:</p>
+<ul>
+<li><code>POST /tier_based_forecast</code>: main forecast endpoint</li>
+<li><code>POST /predict_csv</code>: batch forecasts from CSV upload</li>
+<li><code>POST /chat</code>: conversational explanation + analysis tools</li>
+<li><code>GET /makro-analysis</code>: macro indicators (VIX/MOVE/BVP/GPRH)</li>
+<li><code>GET /health</code>, <code>GET /model_info</code>: system diagnostics</li>
+</ul>
+<h2 data-number="0.5" id="tier-based-input-contract"><span class="header-section-number">0.5</span> 4. Tier-Based Input Contract</h2>
+<h3 data-number="0.5.1" id="tier-1-required"><span class="header-section-number">0.5.1</span> 4.1 Tier 1 (required)</h3>
+<p>Tier 1 is designed for the minimum information that is typically obtainable during diligence:</p>
+<ul>
+<li>Q1–Q4 ARR (most recent four quarters)</li>
+<li>headcount</li>
+<li>sector (constrained to a validated set)</li>
+</ul>
+<h3 data-number="0.5.2" id="tier-2-optional"><span class="header-section-number">0.5.2</span> 4.2 Tier 2 (optional)</h3>
+<p>Tier 2 allows a user to increase forecast fidelity where available:</p>
+<ul>
+<li>gross margin</li>
+<li>sales &amp; marketing spend</li>
+<li>cash burn</li>
+<li>customers</li>
+<li>churn rate</li>
+<li>expansion rate</li>
+</ul>
+<p>This tiering prevents the system from failing when a metric is missing while still rewarding higher-quality inputs.</p>
+<h2 data-number="0.6" id="intelligent-feature-completion-core-contribution"><span class="header-section-number">0.6</span> 5. Intelligent Feature Completion (Core Contribution)</h2>
+<h3 data-number="0.6.1" id="why-feature-completion-is-necessary"><span class="header-section-number">0.6.1</span> 5.1 Why feature completion is necessary</h3>
+<p>The LightGBM model expects a full engineered feature vector. If a user provides only Tier 1, most features would be missing at inference. Simple imputation (zeros/global means) produces vectors that are not representative of the training distribution, harming performance and trust.</p>
+<h3 data-number="0.6.2" id="similarity-matching"><span class="header-section-number">0.6.2</span> 5.2 Similarity matching</h3>
+<p>The completion system finds a cohort of similar companies using:</p>
+<ul>
+<li><strong>logarithmic similarity on ARR</strong> (robust to scale),</li>
+<li>similarity on growth proxies, and</li>
+<li>similarity on headcount.</li>
+</ul>
+<p>It then selects the <strong>top 50</strong> nearest companies as a peer set.</p>
+<h3 data-number="0.6.3" id="robust-inference-via-weighted-median"><span class="header-section-number">0.6.3</span> 5.3 Robust inference via weighted median</h3>
+<p>For each missing feature, values are inferred from the peer set using a <strong>weighted median</strong> (weights = similarity score). This improves robustness under heavy-tailed feature distributions typical in startup metrics.</p>
+<h3 data-number="0.6.4" id="default-priors-by-arr-scale"><span class="header-section-number">0.6.4</span> 5.4 Default priors by ARR scale</h3>
+<p>If a feature is absent even in the peer set (or fails type conversions), the system falls back to size-dependent defaults (small/growth/large ARR regimes). This avoids pathologies such as negative headcount or implausible margins.</p>
+<h2 data-number="0.7" id="hybrid-forecasting-ml-route-rule-based-health-assessment"><span class="header-section-number">0.7</span> 6. Hybrid Forecasting: ML Route + Rule-Based Health Assessment</h2>
+<h3 data-number="0.7.1" id="why-a-hybrid-system-exists"><span class="header-section-number">0.7.1</span> 6.1 Why a hybrid system exists</h3>
+<p>A pure ML system trained predominantly on growth regimes can produce unrealistic outputs for:</p>
+<ul>
+<li>consistent decline,</li>
+<li>flat/stagnant revenue,</li>
+<li>highly volatile patterns, and</li>
+<li>trend reversals.</li>
+</ul>
+<p>This is a classic distribution shift problem: the ML model has limited exposure to these regimes and is optimized for typical growth dynamics.</p>
+<h3 data-number="0.7.2" id="trend-detection-and-routing-6-factor-analysis"><span class="header-section-number">0.7.2</span> 6.2 Trend detection and routing (6-factor analysis)</h3>
+<p>A dedicated routing layer analyzes the last four quarters using:</p>
+<ul>
+<li>overall Q1→Q4 growth,</li>
+<li>QoQ sequence,</li>
+<li>recent momentum (Q3→Q4),</li>
+<li>consistency,</li>
+<li>volatility,</li>
+<li>acceleration/deceleration.</li>
+</ul>
+<p>This generates a trend label (e.g., CONSISTENT_GROWTH, CONSISTENT_DECLINE, VOLATILE_IRREGULAR) and determines whether to route to the edge-case method.</p>
+<figure>
+<img src="figures/fig_09_trend_type_breakdown.png" alt="Figure 9. Trend-type distribution (proxy: last-4Q per company)." /><figcaption aria-hidden="true">Figure 9. Trend-type distribution (proxy: last-4Q per company).</figcaption>
+</figure>
+<figure>
+<img src="figures/fig_10_hybrid_routing_breakdown.png" alt="Figure 10. Hybrid routing breakdown (proxy)." /><figcaption aria-hidden="true">Figure 10. Hybrid routing breakdown (proxy).</figcaption>
+</figure>
+<h3 data-number="0.7.3" id="rule-based-health-assessment-edge-case-method"><span class="header-section-number">0.7.3</span> 6.3 Rule-based health assessment (edge-case method)</h3>
+<p>When the router detects an edge case (or Tier 2 indicates poor fundamentals such as short runway), the system uses a deterministic, benchmark-driven method that:</p>
+<ul>
+<li>computes health metrics (ARR growth, NRR, CAC payback, Rule of 40, runway),</li>
+<li>assigns a health tier (HIGH / MODERATE / LOW), and</li>
+<li>projects ARR forward using conservative growth/decline rules.</li>
+</ul>
+<p>This yields an explainable forecast suitable for investment committees and post-investment monitoring.</p>
+<h2 data-number="0.8" id="model-lightgbm-multi-output-forecasting"><span class="header-section-number">0.8</span> 7. Model: LightGBM Multi-Output Forecasting</h2>
+<h3 data-number="0.8.1" id="model-choice"><span class="header-section-number">0.8.1</span> 7.1 Model choice</h3>
+<p>LightGBM is chosen due to:</p>
+<ul>
+<li>strong performance on tabular data,</li>
+<li>ability to capture nonlinear interactions,</li>
+<li>efficient inference for API serving,</li>
+<li>robustness under engineered features.</li>
+</ul>
+<h3 data-number="0.8.2" id="forecast-horizons-and-evaluation"><span class="header-section-number">0.8.2</span> 7.2 Forecast horizons and evaluation</h3>
+<p>Model performance by horizon:</p>
+<figure>
+<img src="figures/fig_06_r2_by_horizon.png" alt="Figure 6. R² by forecast horizon." /><figcaption aria-hidden="true">Figure 6. R² by forecast horizon.</figcaption>
+</figure>
+<figure>
+<img src="figures/fig_07_mae_by_horizon.png" alt="Figure 7. MAE by forecast horizon." /><figcaption aria-hidden="true">Figure 7. MAE by forecast horizon.</figcaption>
+</figure>
+<h3 data-number="0.8.3" id="feature-importance"><span class="header-section-number">0.8.3</span> 7.3 Feature importance</h3>
+<p>The top importance features provide partial interpretability and sanity checks (e.g., ARR growth and efficiency metrics should matter in SaaS).</p>
+<figure>
+<img src="figures/fig_08_feature_importance_top20.png" alt="Figure 8. Top 20 features by model importance." /><figcaption aria-hidden="true">Figure 8. Top 20 features by model importance.</figcaption>
+</figure>
+<h2 data-number="0.9" id="uncertainty-quantification-decision-support-range"><span class="header-section-number">0.9</span> 8. Uncertainty Quantification (Decision-Support Range)</h2>
+<p>All forecasts return three scenarios:</p>
+<ul>
+<li>pessimistic: (-10%)</li>
+<li>realistic: model projection</li>
+<li>optimistic: (+10%)</li>
+</ul>
+<p>This is implemented as a pragmatic <strong>scenario band</strong>, not a calibrated statistical prediction interval. The intent is to provide:</p>
+<ul>
+<li>a risk-aware range for VC decision-making, and</li>
+<li>a consistent communication format for founders and investors.</li>
+</ul>
+<p>Future iterations should calibrate this band based on historical residual distributions (e.g., empirical 10th/90th percentile errors by ARR regime and horizon).</p>
+<h2 data-number="0.10" id="macroeconomic-context-module"><span class="header-section-number">0.10</span> 9. Macroeconomic Context Module</h2>
+<p>The system provides macro indicators via <code>GET /makro-analysis</code>:</p>
+<ul>
+<li><strong>VIX</strong>: equity volatility / risk sentiment</li>
+<li><strong>MOVE</strong>: rates volatility (funding conditions)</li>
+<li><strong>BVP Cloud Index</strong>: public cloud/software valuation proxy</li>
+<li><strong>GPRH</strong>: geopolitical risk</li>
+</ul>
+<p>These indicators are used as <strong>context</strong>, not as causal features in the core ARR model. The goal is to present the forecast alongside market regime information, improving interpretation and decision quality.</p>
+<h2 data-number="0.11" id="limitations-and-threats-to-validity"><span class="header-section-number">0.11</span> 10. Limitations and Threats to Validity</h2>
+<ul>
+<li><strong>Sampling bias</strong>: dataset is concentrated in specific geographies and software sectors; generalization is strongest for similar companies.</li>
+<li><strong>Missingness</strong>: many metrics are not consistently reported; imputation introduces uncertainty and potential bias.</li>
+<li><strong>Heuristic uncertainty</strong>: ±10% band is not calibrated; it should be validated per segment/horizon.</li>
+<li><strong>Regime shift</strong>: model performance may degrade under structural changes (rates, GTM shifts, competitive dynamics).</li>
+<li><strong>Similarity assumptions</strong>: “nearest companies” may not reflect true similarity for unique businesses; the system can inherit peer group bias.</li>
+</ul>
+<h2 data-number="0.12" id="conclusion"><span class="header-section-number">0.12</span> 11. Conclusion</h2>
+<p>This project delivers a production-ready ARR forecasting system for venture capital workflows. The core contributions are:</p>
+<ul>
+<li>a tiered input interface that matches real diligence constraints,</li>
+<li>a similarity-driven feature completion approach to prevent out-of-distribution inference,</li>
+<li>a hybrid routing architecture that prevents unrealistic forecasts for edge cases via explainable, benchmark-driven projections,</li>
+<li>a deployed FastAPI surface including batch prediction, chat-based explanations, and macro context.</li>
+</ul>
+<p>The system demonstrates strong predictive performance ((R^2 )) while prioritizing robustness and interpretability—two requirements that determine whether ML forecasting tools are usable in real investment practice.</p>
+<hr />
+<h3 data-number="0.12.1" id="appendix-a.-how-to-reproduce-figures"><span class="header-section-number">0.12.1</span> Appendix A. How to reproduce figures</h3>
+<p>From the repo root:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> report/generate_figures.py</span></code></pre></div>
+<p>Figures are written to <code>report/figures/</code>.</p>
+</body>
+</html>
