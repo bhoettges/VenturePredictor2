@@ -320,7 +320,7 @@ class HybridPredictionSystem:
         metadata = {
             'prediction_method': 'ML_Model',
             'trend_analysis': trend_analysis,
-            'model_accuracy': 'R² = 0.7966 (79.66%)',
+            'model_accuracy': 'R² = 0.3349 (33.49%) — corrected after fixing train/test leakage',
             'similar_companies_found': len(similar_companies),
             'raw_yoy_predictions': [float(x) for x in yoy_predictions],
             'raw_annual_growth_pct': raw_annual_growth * 100,

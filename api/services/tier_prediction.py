@@ -175,7 +175,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'total_growth_percent': total_growth,
             'final_yoy_growth_percent': predictions[-1]['YoY_Growth_Percent'],
             'tier_used': 'Tier 1 + Tier 2' if tier2_data else 'Tier 1 Only',
-            'model_accuracy': 'R² = 0.7966 (79.66%)',
+            'model_accuracy': 'R² = 0.3349 (33.49%) — corrected after fixing train/test leakage',
             'confidence_intervals': f'±{band_pct}% on all predictions',
             'user_input_arr_2023': {
                 'q1': request.q1_arr,
@@ -314,19 +314,15 @@ def predict_from_csv(file_content: bytes, company_name: str = None):
         # Get the last 4 quarters (assuming they're in chronological order)
         last_4_quarters = df.tail(4)
         
-        # Intelligent sector inference based on company characteristics
-        # Users often put arbitrary sector names in CSV, so we infer from company size/patterns
         latest_arr = last_4_quarters.iloc[-1]['ARR_End_of_Quarter']
         headcount = int(last_4_quarters.iloc[-1]['Headcount'])
         
-        # Infer sector based on ARR size and headcount patterns
-        # This avoids validation errors from user-provided sector names
-        if latest_arr < 1e6:  # Under $1M ARR
-            inferred_sector = 'Data & Analytics'  # Most common for early stage
-        elif latest_arr < 10e6:  # $1M-$10M ARR
-            inferred_sector = 'Data & Analytics'  # Still common in growth stage
-        else:  # $10M+ ARR
-            inferred_sector = 'Data & Analytics'  # Default for larger companies
+        from api.models.schemas import VALID_SECTORS
+        inferred_sector = 'Other'
+        if 'Sector' in df.columns:
+            csv_sector = str(last_4_quarters.iloc[-1]['Sector']).strip()
+            if csv_sector in VALID_SECTORS:
+                inferred_sector = csv_sector
         
         tier1_data = {
             'q1_arr': last_4_quarters.iloc[0]['ARR_End_of_Quarter'],

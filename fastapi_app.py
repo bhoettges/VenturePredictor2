@@ -27,5 +27,5 @@ app.include_router(macro.router)
 app.include_router(tier_system.router)
 
 print("Production-Ready Financial Forecasting API Initialized")
-print("Model Accuracy: R² = 0.7966 (79.66%)")
+print("Model Accuracy: R² = 0.3349 (33.49%)")
 print("Navigate to http://127.0.0.1:8000/ for API info.") 

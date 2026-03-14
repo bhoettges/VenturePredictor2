@@ -55,13 +55,23 @@ class HistoricalARR(BaseModel):
     q4_arr: float = None  # 1 quarter ago (most recent)
 
 class Tier2Metrics(BaseModel):
-    """Tier 2 advanced metrics for enhanced predictions."""
+    """Tier 2 advanced metrics for enhanced predictions.
+    
+    churn_rate and expansion_rate are expected in percentage points (e.g. 5 means 5%).
+    Values below 1 are assumed to be decimal-encoded and are auto-converted.
+    """
     gross_margin: float = None
     sales_marketing: float = None
     cash_burn: float = None
     customers: float = None
     churn_rate: float = None
     expansion_rate: float = None
+
+    @validator('churn_rate', 'expansion_rate', pre=True, always=True)
+    def normalize_rate_to_pct(cls, v):
+        if v is not None and 0 < v < 1:
+            return v * 100
+        return v
 
 class TierBasedRequest(BaseModel):
     """Tier-based prediction request following the new model structure."""

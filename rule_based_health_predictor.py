@@ -82,11 +82,12 @@ class RuleBasedHealthPredictor:
         if tier2_data and 'churn_rate' in tier2_data and 'expansion_rate' in tier2_data:
             churn_rate = tier2_data['churn_rate']
             expansion_rate = tier2_data['expansion_rate']
-            # Normalize: frontend sends whole-number percentages (e.g. 5 for 5%)
-            # while some callers pass decimals (0.05). Convert to percentage points.
+            # Convention: values are always in percentage points (e.g. 5 means 5%).
+            # Guard against callers who pass decimals (e.g. 0.05 for 5%):
+            # any value strictly below 1 is almost certainly a decimal encoding,
+            # since sub-1% churn/expansion is unrealistic for SaaS.
             churn_pct = churn_rate if churn_rate >= 1 else churn_rate * 100
             expansion_pct = expansion_rate if expansion_rate >= 1 else expansion_rate * 100
-            # NRR = 100% - churn% + expansion%
             nrr = 100 - churn_pct + expansion_pct
             metrics['nrr'] = nrr
             metrics['churn_rate'] = churn_pct / 100

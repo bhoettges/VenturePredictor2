@@ -1,0 +1,38 @@
+2025-09-02 14:45:20,837 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:45:51,693 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:47:50,681 - production_ready_system - ERROR - Prediction failed: No module named 'test_final_solution'
+2025-09-02 14:47:50,682 - production_ready_system - ERROR - Traceback (most recent call last):
+  File "/Users/balts/Desktop/FYP/production_ready_system.py", line 115, in predict_with_fallback
+    from test_final_solution import create_test_company_data
+ModuleNotFoundError: No module named 'test_final_solution'
+
+2025-09-02 14:48:09,162 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-09-02 14:49:21,365 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:50:12,489 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:50:48,072 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:51:18,781 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:51:29,126 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:53:32,321 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:54:22,708 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:54:31,171 - production_ready_system - ERROR - Prediction failed: No module named 'financial_forecasting_model'
+2025-09-02 14:54:31,173 - production_ready_system - ERROR - Traceback (most recent call last):
+  File "/Users/balts/Desktop/FYP/production_ready_system.py", line 115, in predict_with_fallback
+    from tests.test_final_solution import create_test_company_data
+  File "/Users/balts/Desktop/FYP/tests/test_final_solution.py", line 9, in <module>
+    from financial_forecasting_model import load_and_clean_data, engineer_features
+ModuleNotFoundError: No module named 'financial_forecasting_model'
+
+2025-09-02 14:55:25,540 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:55:31,941 - production_ready_system - INFO - Prediction successful for Test Company in 0.54s
+2025-09-02 14:56:09,339 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:56:20,097 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 14:57:17,589 - production_ready_system - INFO - Prediction successful for Conservative Company in 0.50s
+2025-09-02 14:57:38,237 - production_ready_system - INFO - Prediction successful for Historical Company in 0.35s
+2025-09-02 14:57:54,281 - production_ready_system - INFO - Prediction successful for High Growth Company in 0.36s
+2025-09-02 15:02:14,877 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:02:49,027 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:03:08,327 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:03:59,108 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:04:39,708 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:05:14,983 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
+2025-09-02 15:05:22,524 - production_ready_system - INFO - Model loaded successfully. R² scores: {'Q1': 0.8149838930014812, 'Q2': 0.8713189783195082, 'Q3': 0.7775255982609598, 'Q4': 0.7224302967764756}
