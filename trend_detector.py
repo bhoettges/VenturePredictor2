@@ -19,7 +19,7 @@ class TrendDetector:
         self.GROWTH_THRESHOLD = 0.20    # 20% growth
         self.FLAT_THRESHOLD = 0.10      # 10% for flat classification
         self.MOMENTUM_THRESHOLD = 0.15  # 15% for reversal detection
-        self.VOLATILITY_THRESHOLD = 0.25  # High variance threshold
+        self.VOLATILITY_THRESHOLD = 0.20  # High variance threshold
     
     def detect_trend(self, q1: float, q2: float, q3: float, q4: float) -> Dict:
         """
@@ -73,7 +73,7 @@ class TrendDetector:
         # 1. HIGHLY VOLATILE — highest priority.  When QoQ swings are
         #    extreme the other trend signals (growth, momentum) are
         #    unreliable, so catch this first.
-        if volatility > 0.20:
+        if volatility > self.VOLATILITY_THRESHOLD:
             return {
                 "trend_type": "VOLATILE_IRREGULAR",
                 "use_gpt": True,

@@ -3,11 +3,12 @@
 Hybrid Prediction System
 ========================
 
-Combines ML model (for growth) and GPT (for edge cases) using multi-factor trend detection.
+Combines ML model (for growth) and Rule-Based Health Assessment (for edge cases)
+using multi-factor trend detection.
 
 Flow:
-1. Detect company trend using multi-factor analysis
-2. Route to ML model (93% of cases) or GPT (edge cases)
+1. Detect company trend using 6-factor analysis
+2. Route to ML model (standard patterns) or Rule-Based Health Assessment (edge cases)
 3. Return predictions with reasoning
 """
 
@@ -130,14 +131,14 @@ class HybridPredictionSystem:
     
     def predict_with_hybrid(self, tier1_data: Dict, tier2_data: Optional[Dict] = None) -> Tuple[list, Dict]:
         """
-        Make predictions using hybrid ML/GPT approach.
+        Make predictions using hybrid ML / Rule-Based approach.
         
         Returns:
             Tuple of (predictions list, metadata dict with trend analysis)
         """
         
         print("\n" + "=" * 80)
-        print("🚀 HYBRID PREDICTION SYSTEM (ML + GPT)")
+        print("🚀 HYBRID PREDICTION SYSTEM (ML + Rule-Based)")
         print("=" * 80)
         
         # Extract ARR values

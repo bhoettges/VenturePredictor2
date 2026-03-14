@@ -22,7 +22,16 @@ try:
 except Exception:
     GPT_INFO = {}
 
-llm = ChatOpenAI(temperature=0.3, openai_api_key=os.getenv("OPENAI_API_KEY"))
+_llm = None
+
+def _get_llm():
+    global _llm
+    if _llm is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY environment variable is not set")
+        _llm = ChatOpenAI(temperature=0.3, openai_api_key=api_key)
+    return _llm
 
 
 def _build_prediction_context() -> str:
@@ -206,7 +215,7 @@ def handle_chat(request: ChatRequest):
     system_prompt = f"""{greeting} You are a VC-focused AI financial forecasting assistant.
 
 You help investors and founders understand ARR forecasts produced by a hybrid ML system
-(LightGBM + rule-based health assessment for edge cases, R² ≈ 0.80, ±10% confidence bands).
+(LightGBM + rule-based health assessment for edge cases, R² ≈ 0.85, ±10%/±25% confidence bands).
 
 Current macro regime: GPRH={gprh}, VIX={vix}, MOVE={move}, BVP SaaS index={bvp}.
 Project info: {project_info_str}
@@ -285,7 +294,7 @@ INSTRUCTIONS:
     conversation.append({"role": "user", "content": request.message})
 
     try:
-        response = llm.invoke(conversation).content
+        response = _get_llm().invoke(conversation).content
     except Exception as e:
         logger.error(f"LLM invoke failed: {e}", exc_info=True)
         raise

@@ -1,0 +1,84 @@
+{
+  "project_info": {
+    "creator": "Balthasar Hoettges",
+    "project_name": "Venture Prophet",
+    "purpose": "AI-powered ARR forecasting for venture capital, combining LightGBM with a rule-based health assessment for edge cases.",
+    "contact": "balthasar@hoettges.io",
+    "data_supplier": "DTCP (a venture capital company)"
+  },
+  "model_details": {
+    "models": ["LightGBM (Gradient Boosted Trees)"],
+    "prediction_target": "ARR YoY growth for the next 4 quarters",
+    "last_trained": "2026-03",
+    "performance": {
+      "r2": 0.8509,
+      "cv_r2": 0.77,
+      "confidence_intervals": "±10% for standard trajectories, ±25% for volatile cases"
+    },
+    "algorithm_type": "Hybrid Forecasting: LightGBM for growth-regime companies, Rule-Based Health Assessment for edge cases"
+  },
+  "algorithm_explanation": {
+    "overview": "A hybrid forecasting system that routes each prediction through a 6-factor trend analysis. Standard growth patterns go to a LightGBM ML model (R² ≈ 0.85); edge cases (decline, volatility, stagnation, reversals) are routed to a transparent Rule-Based Health Assessment that scores company fundamentals against industry benchmarks.",
+    "stage_1_tier_based_input": {
+      "description": "Tier 1 (Required): Q1-Q4 ARR, Headcount, Sector. Tier 2 (Optional): Gross Margin, Sales & Marketing, Cash Burn, Churn Rate, Customers, Expansion Rate.",
+      "benefit": "Minimal user input required — the system always produces a forecast with just Tier 1 data, while rewarding higher-quality inputs with increased fidelity."
+    },
+    "stage_2_intelligent_feature_completion": {
+      "description": "The LightGBM model expects ~150 features, but users provide at most a dozen. The system bridges this gap by finding the 50 most similar companies in the training data (via log-space ARR similarity, growth similarity, and headcount similarity) and imputing missing metrics using similarity-weighted medians.",
+      "process": [
+        "1. Company Profiling: Score every training company on ARR scale, growth rate, and headcount similarity",
+        "2. Peer Selection: Retain the top 50 companies by composite similarity score",
+        "3. Weighted Median Imputation: For each missing feature, compute the similarity-weighted median from the peer set",
+        "4. Feature Engineering: Construct ~150 engineered features including temporal lags, rolling statistics, SaaS efficiency ratios, and growth trajectory features"
+      ],
+      "features_created": [
+        "Temporal Lags: 1-, 2-, and 4-quarter lags for ARR, burn, margins, headcount, and growth",
+        "Rolling Statistics: 4-quarter rolling means and standard deviations (shifted to prevent leakage)",
+        "SaaS Efficiency Ratios: Magic Number, Burn Multiple, ARR per Headcount",
+        "Growth Trajectory: log_cARR, growth momentum, QoQ ARR ratio and its lag, 4-quarter rolling growth mean",
+        "Domain Features: Headcount QoQ growth, sector encoding"
+      ]
+    },
+    "stage_3_modeling": {
+      "algorithm": "LightGBM (Gradient Boosted Trees)",
+      "why_lightgbm": "Excellent for heterogeneous tabular data, robust under imputation noise, captures non-linear SaaS interactions implicitly, fast CPU inference",
+      "training_data": "5,085 company-quarter observations from ~354 VC-backed companies",
+      "feature_count": "~150 engineered features per prediction",
+      "validation": "Company-based holdout split (80/20) — no company appears in both train and test. 5-fold GroupKFold cross-validation for robust R² estimation."
+    },
+    "confidence_intervals": {
+      "method": "±10% for standard trajectories, ±25% for volatile cases",
+      "rationale": "Pragmatic decision-support ranges calibrated to the uncertainty profile of each trajectory type",
+      "application": "Applied to both individual quarter predictions and cumulative growth forecasts"
+    }
+  },
+  "data_description": {
+    "features": [
+      "Tier 1 (Required): Q1-Q4 ARR, Headcount, Sector",
+      "Tier 2 (Optional): Gross Margin, Sales & Marketing, Cash Burn, Churn Rate, Customers, Expansion Rate",
+      "Engineered: ~150 features including lags, rolling windows, SaaS ratios, growth trajectory features"
+    ],
+    "time_period": "FY2018–FY2024",
+    "notes": "Target values winsorized at ±500% before training. Feature winsorization (1st/99th percentiles) and median imputation computed on training data only."
+  },
+  "limitations": [
+    "Predictions are based on historical data and may not reflect future market conditions or structural regime shifts.",
+    "The model is trained predominantly on growth-regime VC-backed SaaS companies; performance may vary for other profiles.",
+    "Peer-based imputation may reinforce cohort-level correlations rather than recover each company's true metrics."
+  ],
+  "disclaimer": "This tool is for informational and academic purposes only and does not constitute financial advice.",
+  "faqs": [
+    {
+      "question": "How accurate are the predictions?",
+      "answer": "The LightGBM model achieves R² ≈ 0.85 on the held-out test set and R² ≈ 0.77 via 5-fold cross-validation. Predictions include ±10% decision-support bounds for standard trajectories and ±25% for volatile cases."
+    },
+    {
+      "question": "What happens with declining or volatile companies?",
+      "answer": "A 6-factor trend analysis classifies the company's trajectory. Declining, volatile, flat, or reversing companies are routed to a Rule-Based Health Assessment instead of the ML model. This scores the company on 5 pillars (ARR Growth, NRR, CAC Payback, Rule of 40, Runway) and produces benchmark-driven projections."
+    },
+    {
+      "question": "What is intelligent feature completion?",
+      "answer": "When you provide minimal data, the system finds the 50 most similar companies from the training dataset using log-space ARR similarity, growth similarity, and headcount similarity. Missing features are imputed using similarity-weighted medians from that peer set, preserving realistic conditional correlations."
+    }
+  ]
+}

@@ -46,15 +46,19 @@ Not all companies should be predicted the same way. The **Trend Detector** evalu
 
 The Rule-Based path scores the company on five health pillars (benchmarked against McKinsey, BCG, BVP research), assigns a health tier (High / Moderate / Low), and applies tier-specific growth projection rules.
 
+After the ML model produces its raw predictions, a **moderation guardrail** caps the implied annual growth at 3x the company's observed historical growth rate (or 20% if non-positive, with a 10% floor). This prevents the model from extrapolating implausibly beyond the company's demonstrated trajectory.
+
 ## 🤖 ML Model
 
 - **Algorithm:** LightGBM (gradient-boosted decision trees)
 - **Objective:** `regression_l1` (MAE loss, robust to outliers)
+- **Hyperparameters:** 2,000 estimators, lr=0.02, subsample=0.7, colsample=0.6, L1/L2 regularization
 - **Output:** Four-quarter-ahead ARR predictions (multi-output regression)
-- **Training data:** ~5,000 company-quarter observations across ~350 companies
-- **Features:** ~150 engineered features (financial scalars, SaaS ratios, temporal lags, categorical encodings)
-- **Validation:** Company-based holdout split (80/20) — no company appears in both train and test
-- **Performance:** R² ≈ 0.80 (aggregated across horizons)
+- **Training data:** 5,085 company-quarter observations across ~354 companies
+- **Features:** ~150 engineered features (financial scalars, SaaS ratios, temporal lags, growth trajectory features, categorical encodings)
+- **Target preprocessing:** YoY growth winsorized at ±500% before training (~3.9% of values affected)
+- **Validation:** Company-based holdout split (80/20) + 5-fold GroupKFold cross-validation
+- **Performance:** R² ≈ 0.85 (held-out split), R² ≈ 0.77 (5-fold CV)
 
 ## 🔗 API Endpoints
 
@@ -111,6 +115,11 @@ curl -X POST "http://localhost:8000/tier_based_forecast" \
   }'
 ```
 
+### Run End-to-End Tests
+```bash
+python test_end_to_end.py
+```
+
 ## 🛠 Tech Stack
 
 - **API:** FastAPI + Uvicorn
@@ -122,20 +131,23 @@ curl -X POST "http://localhost:8000/tier_based_forecast" \
 ## 📁 Project Structure
 
 ```
-├── fastapi_app.py                         # App entrypoint
+├── fastapi_app.py                            # App entrypoint
 ├── api/
-│   ├── routers/                           # FastAPI route handlers
-│   ├── models/schemas.py                  # Pydantic request/response models
-│   └── services/                          # Business logic (prediction, chat, macro)
-├── hybrid_prediction_system.py            # Orchestrates ML vs. rule-based routing
-├── trend_detector.py                      # 6-factor trend classification
-├── rule_based_health_predictor.py         # Health scoring + deterministic forecasts
+│   ├── routers/                              # FastAPI route handlers
+│   ├── models/schemas.py                     # Pydantic request/response models
+│   └── services/                             # Business logic (prediction, chat, macro)
+├── hybrid_prediction_system.py               # Orchestrates ML vs. rule-based routing
+├── trend_detector.py                         # 6-factor trend classification
+├── rule_based_health_predictor.py            # Health scoring + deterministic forecasts
 ├── intelligent_feature_completion_system.py  # Peer-similarity imputation
-├── tier_based_prediction_system.py        # Tier 1/2 input handling
-├── financial_prediction.py                # LightGBM model loading + inference
-├── prediction_analysis_tools.py           # LangChain tools for chat
-├── *_analysis.py                          # Macro indicator fetchers (VIX, MOVE, BVP, GPRH)
-└── archive/                               # Historical training scripts and analysis
+├── financial_forecasting_model.py            # Training pipeline (feature eng, CV, model fitting)
+├── prediction_analysis_tools.py              # LangChain tools for chat
+├── prediction_memory.py                      # Recent prediction storage for chat context
+├── *_analysis.py                             # Macro indicator fetchers (VIX, MOVE, BVP, GPRH)
+├── test_end_to_end.py                        # 10 end-to-end test cases
+├── lightgbm_financial_model.pkl              # Trained model artifact
+├── 202402_Copy_Fixed.csv                     # Training dataset
+└── archive/                                  # Historical scripts and analysis
 ```
 
 ## 📄 License

@@ -358,7 +358,7 @@ class IntelligentFeatureCompletionSystem:
                 try:
                     feature_vector[col] = pd.to_numeric(feature_vector[col], errors='coerce')
                     feature_vector[col] = feature_vector[col].fillna(0)
-                except:
+                except Exception:
                     feature_vector[col] = 0
         
         return feature_vector
@@ -426,56 +426,3 @@ class IntelligentFeatureCompletionSystem:
         print(f"Predictions as growth %: {[f'{x:.1f}%' for x in predictions]}")
 
         return predictions, similar_companies, feature_vector
-
-def main():
-    """Test the intelligent feature completion system."""
-    print("Intelligent Feature Completion System")
-    print("=" * 50)
-    
-    # Initialize system
-    completion_system = IntelligentFeatureCompletionSystem()
-    
-    # Load test company data
-    print("\nLoading test company data...")
-    company_df = pd.read_csv('test_company_2024.csv')
-    
-    # Map columns to expected format
-    company_df['Financial Quarter'] = company_df['Quarter']
-    company_df['cARR'] = company_df['ARR_End_of_Quarter']
-    company_df['Headcount (HC)'] = company_df['Headcount']
-    company_df['Gross Margin (in %)'] = company_df['Gross_Margin_Percent']
-    company_df['id_company'] = 'test_company_2024'
-    
-    # Calculate growth rates
-    company_df['yoy_growth'] = company_df['cARR'].pct_change(4)
-    company_df['qoq_growth'] = company_df['cARR'].pct_change(1)
-    
-    print("Company Data:")
-    print(company_df[['Financial Quarter', 'cARR', 'Headcount (HC)', 'Gross Margin (in %)']])
-    
-    # Make predictions with completed features
-    predictions, similar_companies, feature_vector = completion_system.predict_with_completed_features(company_df)
-    
-    # Display results
-    print("\n" + "=" * 50)
-    print("PREDICTION RESULTS")
-    print("=" * 50)
-    
-    current_arr = company_df['cARR'].iloc[-1]
-    print(f"Current ARR: ${current_arr:,.0f}")
-    
-    for i, growth_rate in enumerate(predictions):
-        future_arr = current_arr * (1 + growth_rate)
-        quarter = f"Q{i+1} 2024"
-        print(f"{quarter}: ${future_arr:,.0f} (Growth: {growth_rate*100:.1f}%)")
-    
-    print("\nSimilar Companies Found:")
-    print("=" * 25)
-    for i, (_, company) in enumerate(similar_companies.head(5).iterrows()):
-        print(f"{i+1}. Company {company['id_company']}: "
-              f"ARR=${company['arr_size']:,.0f}, "
-              f"Growth={company['yoy_growth']*100:.1f}%, "
-              f"Similarity={company['similarity_score']:.3f}")
-
-if __name__ == "__main__":
-    main()

@@ -15,6 +15,7 @@ import seaborn as sns
 import warnings
 import pickle
 import joblib
+import re
 from pathlib import Path
 
 warnings.filterwarnings('ignore')
@@ -169,7 +170,6 @@ def evaluate_with_cv(df, feature_cols, target_cols, target_cap=500, n_splits=5):
     Runs company-based K-fold cross-validation for robust R² estimation.
     Each fold ensures no company appears in both train and test.
     """
-    import re
     print(f"\n--- Running {n_splits}-Fold GroupKFold CV (cap=±{target_cap}%) ---")
     
     clean_cols = {c: re.sub(r'[^a-zA-Z0-9_]', '_', c) for c in feature_cols}
@@ -399,7 +399,6 @@ if __name__ == '__main__':
         feature_cols = [col for col in df_model_ready.columns if col not in non_feature_cols]
 
         # Sanitize feature names (LightGBM rejects special JSON characters)
-        import re
         clean_map = {c: re.sub(r'[^a-zA-Z0-9_]', '_', c) for c in feature_cols}
         df_model_ready.rename(columns=clean_map, inplace=True)
         feature_cols = [clean_map.get(c, c) for c in feature_cols]
