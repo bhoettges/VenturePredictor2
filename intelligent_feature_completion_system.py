@@ -10,6 +10,7 @@ This system intelligently infers missing features from user input by:
 4. Creating realistic synthetic features that match business logic
 """
 
+import re
 import pandas as pd
 import numpy as np
 import pickle
@@ -18,10 +19,15 @@ from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings('ignore')
 
+
+def _sanitize_name(name: str) -> str:
+    """Apply the same sanitization used during training."""
+    return re.sub(r'[^a-zA-Z0-9_]', '_', name)
+
 class IntelligentFeatureCompletionSystem:
     """Advanced feature completion system using company profiling and industry patterns."""
     
-    def __init__(self, training_data_path='202402_Copy.csv', model_path='lightgbm_financial_model.pkl'):
+    def __init__(self, training_data_path='202402_Copy_Fixed.csv', model_path='lightgbm_financial_model.pkl'):
         """Initialize the feature completion system."""
         self.training_data_path = training_data_path
         self.model_path = model_path
@@ -199,68 +205,73 @@ class IntelligentFeatureCompletionSystem:
         return similar_companies
     
     def infer_missing_features(self, user_data, similar_companies):
-        """Infer missing features based on similar companies and patterns."""
+        """Infer missing features based on similar companies and patterns.
+
+        The model's feature_cols use sanitized names (e.g. ``Gross_Margin__in___``).
+        User data and the raw training CSV use the original names.  We build a
+        reverse mapping so we can look up raw-named columns efficiently.
+        """
         print("Inferring missing features...")
-        
-        # Get the latest user data
+
         latest_user = user_data.iloc[-1].copy()
         user_arr = latest_user['cARR']
-        
-        # Initialize feature dictionary
-        inferred_features = {}
-        
-        # Use similar companies to infer features
+
+        # Build sanitized → raw mapping for user data columns
+        user_san_to_raw = {_sanitize_name(c): c for c in latest_user.index}
+
+        # Get latest similar-company rows from raw training data
         similar_data = self.training_data[
             self.training_data['id_company'].isin(similar_companies['id_company'])
-        ]
-        
-        # Get latest data for similar companies
-        # Sort by company and year/quarter to get latest data
+        ].copy()
         similar_data['Year'] = similar_data['Financial Quarter'].str.extract(r'FY(\d{2,4})')[0].astype(int)
         similar_data['Year'] = similar_data['Year'].apply(lambda x: x + 2000 if x < 100 else x)
         similar_data['Quarter Num'] = similar_data['Financial Quarter'].str.extract(r'(Q[1-4])')[0].map({'Q1':1,'Q2':2,'Q3':3,'Q4':4})
         similar_data['time_idx'] = similar_data['Year'] * 4 + similar_data['Quarter Num']
-        
         similar_latest = similar_data.sort_values(['id_company', 'time_idx']).groupby('id_company').tail(1)
-        
-        # Infer features based on similar companies with weighted averages
+
+        # Build sanitized → raw mapping for training CSV columns
+        csv_san_to_raw = {_sanitize_name(c): c for c in similar_latest.columns}
+
+        inferred_features = {}
+
         for feature in self.model_data['feature_cols']:
-            if feature in latest_user and not pd.isna(latest_user[feature]):
-                # Use user's actual value
-                inferred_features[feature] = latest_user[feature]
-            elif feature in similar_latest.columns:
-                # Handle different data types
-                if similar_latest[feature].dtype in ['object', 'category']:
-                    # For categorical features, use mode (most common value)
-                    mode_value = similar_latest[feature].mode()
+            # 1) Try user data (sanitized name → raw lookup)
+            raw_user_col = user_san_to_raw.get(feature)
+            if raw_user_col is not None and raw_user_col in latest_user.index:
+                val = latest_user[raw_user_col]
+                if not pd.isna(val):
+                    inferred_features[feature] = val
+                    continue
+
+            # 2) Try similar companies (sanitized name → raw CSV column)
+            raw_csv_col = csv_san_to_raw.get(feature)
+            if raw_csv_col is not None and raw_csv_col in similar_latest.columns:
+                col_series = similar_latest[raw_csv_col]
+                if col_series.dtype in ['object', 'category']:
+                    mode_value = col_series.mode()
                     if len(mode_value) > 0:
                         inferred_features[feature] = mode_value.iloc[0]
                     else:
                         inferred_features[feature] = self._get_default_value(feature, user_arr)
                 else:
-                    # For numeric features, use weighted median based on similarity
                     try:
-                        # Get similarity scores for the similar companies
                         similar_ids = similar_latest['id_company'].values
-                        similarity_scores = similar_companies[similar_companies['id_company'].isin(similar_ids)]['similarity_score'].values
-                        
-                        # Use weighted median (weighted by similarity)
-                        values = similar_latest[feature].values
+                        similarity_scores = similar_companies[
+                            similar_companies['id_company'].isin(similar_ids)
+                        ]['similarity_score'].values
+
+                        values = col_series.values
                         if len(values) > 0 and not all(pd.isna(values)):
-                            # Remove NaN values and corresponding weights
                             valid_mask = ~pd.isna(values)
-                            valid_values = values[valid_mask]
+                            valid_values = values[valid_mask].astype(float)
                             valid_weights = similarity_scores[valid_mask]
-                            
+
                             if len(valid_values) > 0:
-                                # Calculate weighted median
                                 sorted_indices = np.argsort(valid_values)
                                 sorted_values = valid_values[sorted_indices]
                                 sorted_weights = valid_weights[sorted_indices]
                                 cumsum_weights = np.cumsum(sorted_weights)
                                 total_weight = cumsum_weights[-1]
-                                
-                                # Find median
                                 median_idx = np.searchsorted(cumsum_weights, total_weight / 2)
                                 if median_idx < len(sorted_values):
                                     inferred_features[feature] = sorted_values[median_idx]
@@ -270,12 +281,13 @@ class IntelligentFeatureCompletionSystem:
                                 inferred_features[feature] = self._get_default_value(feature, user_arr)
                         else:
                             inferred_features[feature] = self._get_default_value(feature, user_arr)
-                    except:
+                    except Exception:
                         inferred_features[feature] = self._get_default_value(feature, user_arr)
-            else:
-                # Use default value
-                inferred_features[feature] = self._get_default_value(feature, user_arr)
-        
+                continue
+
+            # 3) Fallback to defaults
+            inferred_features[feature] = self._get_default_value(feature, user_arr)
+
         print(f"Inferred {len(inferred_features)} features")
         return inferred_features
     
@@ -368,31 +380,51 @@ class IntelligentFeatureCompletionSystem:
         return feature_vector, similar_companies
     
     def predict_with_completed_features(self, user_data):
-        """Make predictions using completed features."""
+        """Make predictions using completed features.
+
+        Returns predictions in **percentage points** (e.g. 50 = 50% growth),
+        matching the training target scale.
+        """
         print("Making predictions with completed features...")
-        
-        # Complete features
+
         feature_vector, similar_companies = self.complete_features(user_data)
-        
+
         # Ensure all required features are present
         for feature in self.model_data['feature_cols']:
             if feature not in feature_vector.columns:
                 feature_vector[feature] = 0
-        
+
         # Convert categorical features to numeric codes
         feature_vector = self._convert_categorical_to_numeric(feature_vector)
-        
+
         # Reorder columns to match model expectations
         feature_vector = feature_vector[self.model_data['feature_cols']]
-        feature_vector = feature_vector.apply(pd.to_numeric, errors='coerce').fillna(0)
-        
+        feature_vector = feature_vector.apply(pd.to_numeric, errors='coerce')
+
+        # Apply saved preprocessing from training: clip_bounds then train_medians
+        clip_bounds = self.model_data.get('clip_bounds', {})
+        for col in feature_vector.columns:
+            if col in clip_bounds:
+                lo, hi = clip_bounds[col]
+                feature_vector[col] = feature_vector[col].clip(lo, hi)
+
+        train_medians = self.model_data.get('train_medians', {})
+        for col in feature_vector.columns:
+            if col in train_medians:
+                feature_vector[col] = feature_vector[col].fillna(train_medians[col])
+        feature_vector = feature_vector.fillna(0)
+
         # Make predictions
         model_pipeline = self.model_data['model_pipeline']
         predictions = model_pipeline.predict(feature_vector)[0]
-        
-        print(f"Raw predictions (YoY growth fractions): {predictions}")
-        print(f"Predictions as growth %: {[f'{x*100:.1f}%' for x in predictions]}")
-        
+
+        # Clip predictions to the target cap used during training
+        target_cap = self.model_data.get('target_cap', 500)
+        predictions = np.clip(predictions, -target_cap, target_cap)
+
+        print(f"Raw predictions (YoY growth pct points): {predictions}")
+        print(f"Predictions as growth %: {[f'{x:.1f}%' for x in predictions]}")
+
         return predictions, similar_companies, feature_vector
 
 def main():

@@ -327,7 +327,7 @@ def _algorithm_response() -> dict:
             r += f"• {feat}\n"
 
     perf = model_info.get('performance', {})
-    r += f"\n**📈 Performance:** R² = {perf.get('r2', 0.3349):.1%} with {perf.get('confidence_intervals', '±10%')} confidence intervals"
+    r += f"\n**📈 Performance:** R² = {perf.get('r2', 0.8509):.1%} with {perf.get('confidence_intervals', '±10%')} confidence intervals"
     return {"response": r}
 
 

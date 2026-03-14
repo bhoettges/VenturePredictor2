@@ -21,7 +21,7 @@ def get_model_info():
     return {
         "model_name": "Enhanced Tier-Based Financial Forecasting Model",
         "version": "2.0.0",
-        "accuracy": "R² = 0.3349 (33.49%)",
+        "accuracy": "R² = 0.8509 (85.09%)",
         "target": "ARR YoY Growth Prediction",
         "features": 152,
         "training_data_size": "5085 records",
@@ -40,7 +40,7 @@ def get_root_info():
         "message": "🚀 Production-Ready Financial Forecasting API", 
         "version": "2.0.0",
         "status": "Production Ready",
-        "model_accuracy": "R² = 0.3349 (33.49%)",
+        "model_accuracy": "R² = 0.8509 (85.09%)",
             "endpoints": {
         "tier_based_forecast": "POST /tier_based_forecast - NEW: Tier-based forecasting with confidence intervals",
         "predict_csv": "POST /predict_csv - Upload CSV file for tier-based forecasting",

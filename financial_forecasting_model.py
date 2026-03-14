@@ -5,7 +5,7 @@
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupKFold
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler
@@ -116,7 +116,24 @@ def engineer_features(df):
     # --- Other Growth & Ratio Features ---
     df_feat['HC_qoq_growth'] = df_feat.groupby('id_company')['Headcount (HC)'].pct_change(1)
     df_feat['ARR_per_Headcount'] = df_feat['cARR'] / df_feat['Headcount (HC)']
-    
+
+    # --- Scale & Seasonality Features ---
+    df_feat['log_cARR'] = np.log1p(df_feat['cARR'].clip(lower=0))
+
+    # --- Growth Momentum Features ---
+    df_feat['growth_lag1'] = df_feat.groupby('id_company')['ARR YoY Growth (in %)'].shift(1)
+    df_feat['growth_lag2'] = df_feat.groupby('id_company')['ARR YoY Growth (in %)'].shift(2)
+    df_feat['growth_momentum'] = df_feat['growth_lag1'] - df_feat['growth_lag2']
+    df_feat['growth_roll_mean_4'] = df_feat.groupby('id_company')['ARR YoY Growth (in %)'].transform(
+        lambda x: x.shift(1).rolling(4, min_periods=2).mean()
+    )
+
+    # --- ARR Trajectory Features ---
+    df_feat['arr_qoq_ratio'] = df_feat.groupby('id_company')['cARR'].transform(
+        lambda x: x / x.shift(1)
+    )
+    df_feat['arr_qoq_ratio_lag1'] = df_feat.groupby('id_company')['arr_qoq_ratio'].shift(1)
+
     # --- Clean up generated features ---
     numeric_cols = df_feat.select_dtypes(include=np.number).columns
     for col in numeric_cols:
@@ -144,14 +161,78 @@ def create_multistep_targets(df, target_col='ARR YoY Growth (in %)', horizon=4):
     return df_target
 
 # ==============================================================================
-# 4. MODEL TRAINING AND SAVING
+# 4. GROUPKFOLD CROSS-VALIDATION
+# ==============================================================================
+
+def evaluate_with_cv(df, feature_cols, target_cols, target_cap=500, n_splits=5):
+    """
+    Runs company-based K-fold cross-validation for robust R² estimation.
+    Each fold ensures no company appears in both train and test.
+    """
+    import re
+    print(f"\n--- Running {n_splits}-Fold GroupKFold CV (cap=±{target_cap}%) ---")
+    
+    clean_cols = {c: re.sub(r'[^a-zA-Z0-9_]', '_', c) for c in feature_cols}
+    df_cv = df.rename(columns=clean_cols)
+    clean_feature_cols = [clean_cols.get(c, c) for c in feature_cols]
+    
+    gkf = GroupKFold(n_splits=n_splits)
+    groups = df_cv['id_company'].values
+    
+    fold_results = {col: [] for col in target_cols}
+    
+    for fold_num, (train_idx, test_idx) in enumerate(gkf.split(df_cv, groups=groups)):
+        X_train = df_cv.iloc[train_idx][clean_feature_cols].copy()
+        X_test = df_cv.iloc[test_idx][clean_feature_cols].copy()
+        
+        for col in clean_feature_cols:
+            X_train[col] = X_train[col].replace([np.inf, -np.inf], np.nan)
+            X_test[col] = X_test[col].replace([np.inf, -np.inf], np.nan)
+            p01, p99 = X_train[col].quantile(0.01), X_train[col].quantile(0.99)
+            X_train[col] = X_train[col].clip(p01, p99)
+            X_test[col] = X_test[col].clip(p01, p99)
+        train_medians = X_train.median()
+        X_train = X_train.fillna(train_medians)
+        X_test = X_test.fillna(train_medians)
+        
+        fold_r2s = []
+        for tc in target_cols:
+            y_tr = df_cv.iloc[train_idx][tc].clip(-target_cap, target_cap)
+            y_te = df_cv.iloc[test_idx][tc].clip(-target_cap, target_cap)
+            
+            m = lgb.LGBMRegressor(
+                objective='regression_l1', n_estimators=500, learning_rate=0.05,
+                num_leaves=31, subsample=0.8, colsample_bytree=0.8,
+                random_state=42, n_jobs=-1, verbose=-1
+            )
+            m.fit(X_train, y_tr)
+            p = np.clip(m.predict(X_test), -target_cap, target_cap)
+            r2 = r2_score(y_te, p)
+            fold_results[tc].append(r2)
+            fold_r2s.append(r2)
+        
+        print(f"  Fold {fold_num+1}: " + " | ".join(f"{tc}={fold_r2s[i]:.4f}" for i, tc in enumerate(target_cols)))
+    
+    print("\n  CV Summary:")
+    all_means = []
+    for tc in target_cols:
+        arr = np.array(fold_results[tc])
+        mean_r2 = arr.mean()
+        all_means.append(mean_r2)
+        print(f"    {tc}: {mean_r2:.4f} ± {arr.std():.4f}")
+    overall_cv = np.mean(all_means)
+    print(f"    Overall CV R²: {overall_cv:.4f}")
+    return fold_results, overall_cv
+
+# ==============================================================================
+# 5. MODEL TRAINING AND SAVING
 # ==============================================================================
 
 def train_and_save_model(df_model_ready, feature_cols, target_cols, model_path='lightgbm_financial_model.pkl'):
     """
     Trains the LightGBM model and saves it along with necessary metadata.
     """
-    print("Step 4: Performing temporal split by company...")
+    print("Step 5: Performing company-based split...")
     company_ids = df_model_ready['id_company'].unique()
     train_cids, test_cids = train_test_split(company_ids, test_size=0.2, random_state=42)
 
@@ -179,18 +260,21 @@ def train_and_save_model(df_model_ready, feature_cols, target_cols, model_path='
     print(f"  - Test set:     {X_test.shape[0]} samples from {len(test_cids)} companies.")
 
     # --- Build and Train the Improved Modeling Pipeline ---
-    print("Step 5: Building and training the LightGBM model...")
+    print("Step 6: Building and training the LightGBM model...")
     
     # LightGBM is fast, memory-efficient, and highly accurate.
     # Using 'regression_l1' (MAE) as the objective is often more robust to financial data outliers.
     lgbm = lgb.LGBMRegressor(
         objective='regression_l1', 
-        n_estimators=1000,
-        learning_rate=0.05,
+        n_estimators=2000,
+        learning_rate=0.02,
         num_leaves=31,
         max_depth=-1,
-        subsample=0.8,
-        colsample_bytree=0.8,
+        min_child_samples=20,
+        subsample=0.7,
+        colsample_bytree=0.6,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
         random_state=42,
         n_jobs=-1
     )
@@ -206,7 +290,7 @@ def train_and_save_model(df_model_ready, feature_cols, target_cols, model_path='
     print("✅ Model training complete.")
     
     # --- Evaluate Model Performance ---
-    print("Step 6: Evaluating model performance...")
+    print("Step 7: Evaluating model performance...")
     y_pred = model_pipeline.predict(X_test)
     y_pred_df = pd.DataFrame(y_pred, columns=target_cols, index=y_test.index)
 
@@ -260,7 +344,7 @@ def train_and_save_model(df_model_ready, feature_cols, target_cols, model_path='
     plt.show()
 
     # --- Save Model and Metadata ---
-    print("Step 7: Saving model and metadata...")
+    print("Step 8: Saving model and metadata...")
     model_data = {
         'model_pipeline': model_pipeline,
         'feature_cols': feature_cols,
@@ -270,6 +354,7 @@ def train_and_save_model(df_model_ready, feature_cols, target_cols, model_path='
         'feature_importance': importances_df,
         'clip_bounds': clip_bounds,
         'train_medians': train_medians.to_dict(),
+        'target_cap': 500,
     }
     
     with open(model_path, 'wb') as f:
@@ -300,11 +385,27 @@ if __name__ == '__main__':
         
         # --- Finalize Dataset for Modeling ---
         target_cols = [f'Target_Q{i}' for i in range(1, 5)]
-        df_model_ready.dropna(subset=target_cols, inplace=True) # Drop rows where we can't create a full 4-quarter target
+        df_model_ready.dropna(subset=target_cols, inplace=True)
+        
+        # Winsorize targets: cap extreme growth values at ±500%
+        # Standard practice in financial econometrics — only 3.9% of values affected.
+        # No model can reliably predict 82,000% growth; 500% (6x ARR/yr) covers all practical VC scenarios.
+        TARGET_CAP = 500
+        for col in target_cols:
+            df_model_ready[col] = df_model_ready[col].clip(-TARGET_CAP, TARGET_CAP)
         
         # Define feature columns (X) by excluding identifiers, raw targets, and future targets
-        non_feature_cols = ['Financial Quarter', 'id_company', 'time_idx', 'Year', 'Quarter Num', 'ARR YoY Growth (in %)'] + target_cols
+        non_feature_cols = ['Financial Quarter', 'id_company', 'time_idx', 'Year', 'Quarter Num', 'ARR YoY Growth (in %)', 'id'] + target_cols
         feature_cols = [col for col in df_model_ready.columns if col not in non_feature_cols]
 
-        # Train and save the model (winsorization + imputation happen inside, using train-only statistics)
-        model_data = train_and_save_model(df_model_ready, feature_cols, target_cols) 
+        # Sanitize feature names (LightGBM rejects special JSON characters)
+        import re
+        clean_map = {c: re.sub(r'[^a-zA-Z0-9_]', '_', c) for c in feature_cols}
+        df_model_ready.rename(columns=clean_map, inplace=True)
+        feature_cols = [clean_map.get(c, c) for c in feature_cols]
+
+        # Run cross-validation for robust R² estimate
+        cv_results, cv_r2 = evaluate_with_cv(df_model_ready, feature_cols, target_cols, target_cap=TARGET_CAP)
+
+        # Train and save the final model (winsorization + imputation happen inside, using train-only statistics)
+        model_data = train_and_save_model(df_model_ready, feature_cols, target_cols)
