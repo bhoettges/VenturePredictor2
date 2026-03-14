@@ -1,210 +1,143 @@
-# 🚀 Enhanced Financial Forecasting API
+# VenturePredictor — Intelligent SaaS Forecasting for VC
 
-A production-ready financial forecasting API that predicts ARR (Annual Recurring Revenue) growth using machine learning models trained on real SaaS company data.
+A hybrid ML + rule-based forecasting system that predicts ARR (Annual Recurring Revenue) for SaaS companies across four future quarters. Built for venture capital workflows where data is sparse, trajectories vary wildly, and transparency matters.
 
-## ✨ **Key Features**
+## 🏗 Architecture Overview
 
-### **🎯 Smart Forecasting**
-- **LightGBM Model**: High-performance gradient boosting for accurate predictions (single model approach)
-- **Uncertainty Quantification**: ±10% confidence bands for realistic forecasts
-- **Multi-Quarter Predictions**: Forecast 4 quarters ahead with detailed breakdowns
+The system routes each prediction through an intelligent pipeline:
 
-### **🔧 Flexible Input Modes**
-- **Basic Mode**: Minimal inputs (company name, current ARR, net new ARR)
-- **Enhanced Mode**: Optional sector/country/currency selection for better accuracy
-- **Historical ARR**: Provide 4 quarters of historical data for improved predictions
-- **Advanced Mode**: Override 14 key financial metrics with your own values
+1. **Tier-based input parsing** — separates required inputs (Tier 1) from optional advanced metrics (Tier 2)
+2. **Intelligent Feature Completion** — imputes missing Tier 2 fields using peer-similarity matching and weighted medians
+3. **Trend Detection** — classifies the company's ARR trajectory (growth, decline, volatile, reversal, flat) using a 6-factor analysis
+4. **Hybrid Routing** — standard growth patterns go to the LightGBM ML model; edge cases (decline, volatility, stagnation) are routed to a Rule-Based Health Assessment
+5. **Health Scorecard** — all predictions include a 100-point health score across five pillars (ARR Growth, NRR, CAC Payback, Rule of 40, Runway)
+6. **Uncertainty Bands** — ±10% for standard trajectories, ±25% for volatile cases
+7. **LLM Narrative** — GPT-powered natural language explanation of the forecast
 
-### **📊 Data-Driven Intelligence**
-- **Adaptive Defaults**: Uses training data relationships for realistic estimates
-- **Sector-Specific Patterns**: 7 main sectors covering 81% of companies
-- **Geographic Context**: 4 main countries covering 87% of companies
-- **Smart Imputation**: Intelligent feature filling based on company characteristics
+## 📥 Input Contract
 
-### **🤖 Conversational AI**
-- **Chat Interface**: Natural language interaction for financial forecasting
-- **LangChain Integration**: Powered by OpenAI for intelligent responses
-- **Context Awareness**: Remembers conversation history and preferences
+### Tier 1 (Required)
+| Field | Type | Description |
+|-------|------|-------------|
+| `q1_arr` – `q4_arr` | float | Four consecutive quarters of ARR |
+| `headcount` | int | Current employee count |
+| `sector` | string | One of: Cyber Security, Data & Analytics, Infrastructure & Network, Communication & Collaboration, Marketing & Customer Experience, Other |
 
-## 🚀 **Quick Start**
+### Tier 2 (Optional)
+| Field | Type | Description |
+|-------|------|-------------|
+| `gross_margin` | float | Gross margin (%) |
+| `sales_marketing` | float | S&M spend ($) |
+| `cash_burn` | float | Monthly cash burn ($) |
+| `customers` | float | End-of-period customer count |
+| `churn_rate` | float | Annual logo/revenue churn (%) |
+| `expansion_rate` | float | Net expansion rate (%) |
 
-### **1. Basic Forecast (Minimal Input)**
-```bash
-curl -X POST "https://your-api-url/guided_forecast" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "company_name": "My Company",
-    "current_arr": 2800000,
-    "net_new_arr": 800000,
-    "enhanced_mode": false
-  }'
-```
+When Tier 2 fields are missing, the Intelligent Feature Completion system fills them by finding the 50 most similar companies (by ARR scale, growth rate, and headcount) and computing weighted medians from that peer set.
 
-### **2. Enhanced Forecast (Detailed Input)**
-```bash
-curl -X POST "https://your-api-url/guided_forecast" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "company_name": "My Company",
-    "current_arr": 2800000,
-    "net_new_arr": 800000,
-    "enhanced_mode": true,
-    "sector": "Cyber Security",
-    "country": "United States",
-    "currency": "USD"
-  }'
-```
+## 🔀 Hybrid Forecasting
 
-### **3. Full Enhanced Forecast (Historical + Advanced)**
-```bash
-curl -X POST "https://your-api-url/guided_forecast" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "company_name": "My Company",
-    "current_arr": 2800000,
-    "net_new_arr": 800000,
-    "enhanced_mode": true,
-    "sector": "Data & Analytics",
-    "country": "Israel",
-    "currency": "USD",
-    "historical_arr": {
-      "q1_arr": 1000000,
-      "q2_arr": 1400000,
-      "q3_arr": 2000000,
-      "q4_arr": 2800000
-    },
-    "advanced_mode": true,
-    "advanced_metrics": {
-      "magic_number": 0.95,
-      "gross_margin": 82.0,
-      "headcount": 70
-    }
-  }'
-```
+Not all companies should be predicted the same way. The **Trend Detector** evaluates six factors — simple growth, QoQ rates, momentum, consistency, volatility, and acceleration — against priority-ordered thresholds:
 
-## 📊 **Available Options**
+| Pattern | Route | Rationale |
+|---------|-------|-----------|
+| Consistent growth / moderate growth | ML Model (LightGBM) | Standard regime the model was trained on |
+| Decline, reversal, flat, volatile, unclear | Rule-Based Health Assessment | Edge cases where growth-trained ML produces unreliable forecasts |
 
-### **🏢 Sectors (7 options)**
-- Cyber Security (19.4% of training data)
-- Data & Analytics (14.5%)
-- Infrastructure & Network (12.4%)
-- Communication & Collaboration (10.8%)
-- Marketing & Customer Experience (9.1%)
-- FinTech (7.8%)
-- Sales & Productivity (7.1%)
-- Other (18.9%)
+The Rule-Based path scores the company on five health pillars (benchmarked against McKinsey, BCG, BVP research), assigns a health tier (High / Moderate / Low), and applies tier-specific growth projection rules.
 
-### **🌍 Countries (4 options)**
-- United States (55.5% of training data)
-- Israel (14.3%)
-- Germany (10.3%)
-- United Kingdom (6.4%)
-- Other (13.5%)
+## 🤖 ML Model
 
-### **💰 Currencies (5 options)**
-- USD (87.7% of training data)
-- EUR (10.5%)
-- GBP (1.6%)
-- CAD (0.1%)
-- Other (0.1%)
+- **Algorithm:** LightGBM (gradient-boosted decision trees)
+- **Objective:** `regression_l1` (MAE loss, robust to outliers)
+- **Output:** Four-quarter-ahead ARR predictions (multi-output regression)
+- **Training data:** ~5,000 company-quarter observations across ~350 companies
+- **Features:** ~150 engineered features (financial scalars, SaaS ratios, temporal lags, categorical encodings)
+- **Validation:** Company-based holdout split (80/20) — no company appears in both train and test
+- **Performance:** R² ≈ 0.80 (aggregated across horizons)
 
-## 🔗 **API Endpoints**
+## 🔗 API Endpoints
 
-### **Core Endpoints**
-- `GET /` - API documentation and available options
-- `POST /guided_forecast` - Main forecasting endpoint
-- `POST /chat` - Conversational AI interface
-- `POST /predict_csv` - CSV upload for batch predictions
-- `GET /makro-analysis` - Macroeconomic indicators
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/tier_based_forecast` | Primary forecasting endpoint (Tier 1 + optional Tier 2) |
+| `POST` | `/predict_csv` | Batch predictions from CSV upload |
+| `POST` | `/chat` | Conversational AI interface (LangChain + GPT) |
+| `GET` | `/makro-analysis` | Macroeconomic context (GPRH, VIX, MOVE, BVP indices) |
+| `GET` | `/model-info` | Model metadata and feature list |
+| `GET` | `/health` | Service health check |
 
-### **Response Format**
-```json
-{
-  "company_name": "My Company",
-  "forecast_results": [
-    {
-      "Future Quarter": "Q1 2025",
-      "Realistic": 100.7,
-      "Pessimistic": 90.6,
-      "Optimistic": 110.7,
-      "Realistic_ARR": 3080000,
-      "Pessimistic_ARR": 2770000,
-      "Optimistic_ARR": 3390000
-    }
-  ],
-  "model_used": "LightGBM Model with Uncertainty (±10%)",
-  "forecast_success": true,
-  "insights": {
-    "size_category": "Growth Stage",
-    "growth_insight": "Growth rate: 40.0%",
-    "efficiency_insight": "Magic Number: 0.80"
-  }
-}
-```
+## 🌐 Macroeconomic Context Module
 
-## 🛠️ **Technical Requirements**
+Forecasts are contextualised (not driven) by four macro indicators:
 
-- **Python**: 3.10.18+
-- **Dependencies**: See `requirements.txt`
-- **Model**: LightGBM trained on 5,085+ company quarters
-- **Data**: Real SaaS company financial data
+- **GPRH** — Geopolitical Risk Index
+- **VIX** — Market volatility
+- **MOVE** — Bond market volatility
+- **BVP Cloud Index** — SaaS sector performance
 
-## 🚀 **Deployment**
+These are presented as a decision-support overlay, not fed into the ML model.
 
-### **Local Development**
+## 🚀 Quick Start
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+
+# Set environment variable for chat functionality
+export OPENAI_API_KEY=your_key_here
 
 # Start the server
 uvicorn fastapi_app:app --reload
 ```
 
-### **Production Deployment**
-- **Render**: Configured with `render.yaml`
-- **Environment Variables**: Set `OPENAI_API_KEY` for chat functionality
-- **CORS**: Configured for web frontend integration
+### Example Request
+```bash
+curl -X POST "http://localhost:8000/tier_based_forecast" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_name": "Acme SaaS",
+    "q1_arr": 1000000,
+    "q2_arr": 1400000,
+    "q3_arr": 2000000,
+    "q4_arr": 2800000,
+    "headcount": 70,
+    "sector": "Data & Analytics",
+    "tier2_metrics": {
+      "gross_margin": 82.0,
+      "churn_rate": 3.0,
+      "expansion_rate": 25.0
+    }
+  }'
+```
 
-## 📈 **Model Performance**
+## 🛠 Tech Stack
 
-- **Training Data**: 5,085+ company quarters
-- **Features**: 158+ engineered features
-- **Algorithm**: LightGBM gradient boosting
-- **Uncertainty**: ±10% confidence bands
-- **Fallback**: Robust error handling with alternative calculations
+- **API:** FastAPI + Uvicorn
+- **ML:** LightGBM, scikit-learn
+- **Chat:** LangChain + OpenAI GPT
+- **Validation:** Pydantic
+- **Deployment:** Render (`render.yaml`)
 
-## 🔒 **Input Validation**
+## 📁 Project Structure
 
-- **Bulletproof Validation**: Pydantic models ensure data integrity
-- **Clear Error Messages**: Helpful feedback for invalid inputs
-- **Flexible Inputs**: Works with minimal or detailed information
-- **Data-Driven Defaults**: Intelligent fallbacks based on training data
+```
+├── fastapi_app.py                         # App entrypoint
+├── api/
+│   ├── routers/                           # FastAPI route handlers
+│   ├── models/schemas.py                  # Pydantic request/response models
+│   └── services/                          # Business logic (prediction, chat, macro)
+├── hybrid_prediction_system.py            # Orchestrates ML vs. rule-based routing
+├── trend_detector.py                      # 6-factor trend classification
+├── rule_based_health_predictor.py         # Health scoring + deterministic forecasts
+├── intelligent_feature_completion_system.py  # Peer-similarity imputation
+├── tier_based_prediction_system.py        # Tier 1/2 input handling
+├── financial_prediction.py                # LightGBM model loading + inference
+├── prediction_analysis_tools.py           # LangChain tools for chat
+├── *_analysis.py                          # Macro indicator fetchers (VIX, MOVE, BVP, GPRH)
+└── archive/                               # Historical training scripts and analysis
+```
 
-## 📚 **Documentation**
+## 📄 License
 
-- **Auto-Generated Docs**: Available at `/docs` when running
-- **OpenAPI Schema**: Complete API specification
-- **Example Requests**: Provided in documentation
-- **Response Schemas**: All endpoints documented
-
-## 🤝 **Integration**
-
-Perfect for integration with:
-- **Lovable**: Production-ready API for no-code platforms
-- **Web Applications**: CORS configured for frontend integration
-- **Mobile Apps**: RESTful API with JSON responses
-- **Data Pipelines**: CSV upload and batch processing support
-
----
-
-## 🎉 **Ready for Production**
-
-This API is fully prepared for production deployment with:
-- ✅ Bulletproof input validation
-- ✅ Data-driven categorical options
-- ✅ Comprehensive error handling
-- ✅ Production-ready deployment config
-- ✅ Complete API documentation
-- ✅ Flexible input modes (basic/enhanced)
-- ✅ Uncertainty quantification
-- ✅ Historical data support # Trigger redeploy - Wed Sep  3 02:53:46 CEST 2025
+Academic project — Reichman University.
