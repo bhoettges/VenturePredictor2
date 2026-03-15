@@ -13,14 +13,21 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from api.models.schemas import ChatRequest
+import pickle as _pkl
 
 load_dotenv()
 
 try:
-    with open("gpt_info.json") as f:
+    with open(project_root / "gpt_info.json") as f:
         GPT_INFO = json.load(f)
 except Exception:
     GPT_INFO = {}
+
+try:
+    with open(project_root / "lightgbm_financial_model.pkl", "rb") as _f:
+        _MODEL_R2 = _pkl.load(_f).get("overall_r2", 0.85)
+except Exception:
+    _MODEL_R2 = 0.85
 
 _llm = None
 
@@ -47,6 +54,10 @@ def _build_prediction_context() -> str:
             return ""
 
         input_data = pred.get("input_data", {})
+        # CSV uploads nest ARR values under a 'tier1_data' sub-key; flatten.
+        tier1 = input_data.get("tier1_data", {})
+        flat_input = {**tier1, **input_data} if tier1 else input_data
+
         insights = pred.get("insights", {})
         forecasts = pred.get("predictions", [])
         trend = pred.get("trend_analysis") or {}
@@ -60,12 +71,12 @@ def _build_prediction_context() -> str:
             f"Model: {pred.get('model_used', 'Unknown')}",
             "",
             "Input (2023 quarterly ARR):",
-            f"  Q1: ${input_data.get('q1_arr', 0):,.0f}",
-            f"  Q2: ${input_data.get('q2_arr', 0):,.0f}",
-            f"  Q3: ${input_data.get('q3_arr', 0):,.0f}",
-            f"  Q4: ${input_data.get('q4_arr', 0):,.0f}",
-            f"  Sector: {input_data.get('sector', 'N/A')}",
-            f"  Headcount: {input_data.get('headcount', 'N/A')}",
+            f"  Q1: ${flat_input.get('q1_arr', 0):,.0f}",
+            f"  Q2: ${flat_input.get('q2_arr', 0):,.0f}",
+            f"  Q3: ${flat_input.get('q3_arr', 0):,.0f}",
+            f"  Q4: ${flat_input.get('q4_arr', 0):,.0f}",
+            f"  Sector: {flat_input.get('sector', 'N/A')}",
+            f"  Headcount: {flat_input.get('headcount', 'N/A')}",
         ]
 
         if forecasts:
@@ -215,7 +226,7 @@ def handle_chat(request: ChatRequest):
     system_prompt = f"""{greeting} You are a VC-focused AI financial forecasting assistant.
 
 You help investors and founders understand ARR forecasts produced by a hybrid ML system
-(LightGBM + rule-based health assessment for edge cases, R² ≈ 0.85, ±10%/±25% confidence bands).
+(LightGBM + rule-based health assessment for edge cases, R² ≈ {_MODEL_R2:.2f}, ±10%/±25% confidence bands).
 
 Current macro regime: GPRH={gprh}, VIX={vix}, MOVE={move}, BVP SaaS index={bvp}.
 Project info: {project_info_str}
@@ -233,9 +244,9 @@ TREND DETECTION (6-factor analysis on the 4 input quarters):
     - acceleration = "accelerating" if qoq3>qoq2>qoq1, "decelerating" if qoq3<qoq2<qoq1, else "irregular"
     - consistency checks: all_positive (all QoQ>0), all_negative (all QoQ<0)
   Classification rules (checked in priority order):
-    1. CONSISTENT_DECLINE: all QoQ negative, OR (simple_growth < -15% AND momentum < -10%)
-    2. TREND_REVERSAL: overall positive but recent momentum < -15%, or vice versa
-    3. VOLATILE_IRREGULAR: volatility > 0.20 (i.e. std dev of QoQ rates exceeds 20pp)
+    1. VOLATILE_IRREGULAR: volatility > 0.20 (i.e. std dev of QoQ rates exceeds 20pp)
+    2. CONSISTENT_DECLINE: all QoQ negative, OR (simple_growth < -15% AND momentum < -10%)
+    3. TREND_REVERSAL: overall positive but recent momentum < -15%, or vice versa
     4. FLAT_STAGNANT: |simple_growth| < 10% AND |avg QoQ| < 5%
     5. CONSISTENT_GROWTH: all QoQ positive AND simple_growth > 20%
     6. MODERATE_GROWTH: simple_growth > 0 (catch-all positive)
@@ -336,7 +347,7 @@ def _algorithm_response() -> dict:
             r += f"• {feat}\n"
 
     perf = model_info.get('performance', {})
-    r += f"\n**📈 Performance:** R² = {perf.get('r2', 0.8509):.1%} with {perf.get('confidence_intervals', '±10%')} confidence intervals"
+    r += f"\n**📈 Performance:** R² = {perf.get('r2', _MODEL_R2):.1%} with {perf.get('confidence_intervals', '±10%')} confidence intervals"
     return {"response": r}
 
 

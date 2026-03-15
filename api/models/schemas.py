@@ -60,12 +60,12 @@ class Tier2Metrics(BaseModel):
     churn_rate and expansion_rate are expected in percentage points (e.g. 5 means 5%).
     Values below 1 are assumed to be decimal-encoded and are auto-converted.
     """
-    gross_margin: float = None
-    sales_marketing: float = None
-    cash_burn: float = None
-    customers: float = None
-    churn_rate: float = None
-    expansion_rate: float = None
+    gross_margin: Optional[float] = None
+    sales_marketing: Optional[float] = None
+    cash_burn: Optional[float] = None
+    customers: Optional[float] = None
+    churn_rate: Optional[float] = None
+    expansion_rate: Optional[float] = None
 
     @validator('churn_rate', 'expansion_rate', pre=True, always=True)
     def normalize_rate_to_pct(cls, v):
@@ -131,7 +131,6 @@ class EnhancedGuidedInputRequest(BaseModel):
     historical_arr: HistoricalARR = None
     
     # Advanced metrics (optional)
-    advanced_mode: bool = False
     advanced_metrics: AdvancedMetrics = None
     
     @validator('sector')

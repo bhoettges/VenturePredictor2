@@ -124,15 +124,16 @@ class IntelligentFeatureCompletionSystem:
         
         for feature in key_features:
             if feature in df.columns:
-                # Calculate correlations with ARR
                 if feature != 'cARR':
                     corr = df[['cARR', feature]].corr().iloc[0, 1]
-                    relationships[feature] = {
+                    stats = {
                         'correlation_with_arr': corr,
                         'mean_ratio_to_arr': (df[feature] / (df['cARR'] + 1e-8)).mean(),
                         'median_ratio_to_arr': (df[feature] / (df['cARR'] + 1e-8)).median(),
                         'std_ratio_to_arr': (df[feature] / (df['cARR'] + 1e-8)).std()
                     }
+                    relationships[feature] = stats
+                    relationships[_sanitize_name(feature)] = stats
         
         # Analyze growth patterns
         relationships['growth_patterns'] = {
@@ -229,6 +230,14 @@ class IntelligentFeatureCompletionSystem:
         similar_data['time_idx'] = similar_data['Year'] * 4 + similar_data['Quarter Num']
         similar_latest = similar_data.sort_values(['id_company', 'time_idx']).groupby('id_company').tail(1)
 
+        # Merge similarity scores so values and weights share the same row order.
+        similar_latest = similar_latest.merge(
+            similar_companies[['id_company', 'similarity_score']],
+            on='id_company',
+            how='left',
+        )
+        sim_weights = similar_latest['similarity_score'].values
+
         # Build sanitized → raw mapping for training CSV columns
         csv_san_to_raw = {_sanitize_name(c): c for c in similar_latest.columns}
 
@@ -255,16 +264,11 @@ class IntelligentFeatureCompletionSystem:
                         inferred_features[feature] = self._get_default_value(feature, user_arr)
                 else:
                     try:
-                        similar_ids = similar_latest['id_company'].values
-                        similarity_scores = similar_companies[
-                            similar_companies['id_company'].isin(similar_ids)
-                        ]['similarity_score'].values
-
                         values = col_series.values
                         if len(values) > 0 and not all(pd.isna(values)):
                             valid_mask = ~pd.isna(values)
                             valid_values = values[valid_mask].astype(float)
-                            valid_weights = similarity_scores[valid_mask]
+                            valid_weights = sim_weights[valid_mask]
 
                             if len(valid_values) > 0:
                                 sorted_indices = np.argsort(valid_values)
@@ -292,20 +296,25 @@ class IntelligentFeatureCompletionSystem:
         return inferred_features
     
     def _get_default_value(self, feature, user_arr):
-        """Get default value for a feature based on patterns."""
+        """Get default value for a feature based on patterns.
+
+        ``feature`` arrives as a sanitized column name (e.g.
+        ``Gross_Margin__in___``).  We look it up by both the sanitized
+        and the raw name so the size-based defaults always apply.
+        """
         # Use feature relationships to infer values
         if feature in self.feature_relationships:
             rel = self.feature_relationships[feature]
             if 'median_ratio_to_arr' in rel:
                 return user_arr * rel['median_ratio_to_arr']
         
-        # More realistic industry-standard defaults based on company size
-        if user_arr < 1000000:  # Small company (< $1M ARR)
-            defaults = {
-                'Gross Margin (in %)': 70,
+        # Defaults based on company size. user_arr is in THOUSANDS (training scale).
+        if user_arr < 1000:  # Small company (< $1M ARR)
+            raw_defaults = {
+                'Gross Margin (in %)': 0.70,
                 'Net Profit/Loss Margin (in %)': -25,
-                'Headcount (HC)': max(1, int(user_arr / 100000)),
-                'Customers (EoP)': max(1, int(user_arr / 3000)),
+                'Headcount (HC)': max(1, int(user_arr / 100)),
+                'Customers (EoP)': max(1, int(user_arr / 3)),
                 'Sales & Marketing': user_arr * 0.5,
                 'R&D': user_arr * 0.3,
                 'G&A': user_arr * 0.2,
@@ -313,12 +322,12 @@ class IntelligentFeatureCompletionSystem:
                 'Expansion & Upsell': user_arr * 0.15,
                 'Churn & Reduction': -user_arr * 0.08
             }
-        elif user_arr < 10000000:  # Medium company ($1M - $10M ARR)
-            defaults = {
-                'Gross Margin (in %)': 75,
+        elif user_arr < 10000:  # Medium company ($1M - $10M ARR)
+            raw_defaults = {
+                'Gross Margin (in %)': 0.75,
                 'Net Profit/Loss Margin (in %)': -15,
-                'Headcount (HC)': max(1, int(user_arr / 150000)),
-                'Customers (EoP)': max(1, int(user_arr / 5000)),
+                'Headcount (HC)': max(1, int(user_arr / 150)),
+                'Customers (EoP)': max(1, int(user_arr / 5)),
                 'Sales & Marketing': user_arr * 0.4,
                 'R&D': user_arr * 0.25,
                 'G&A': user_arr * 0.15,
@@ -327,11 +336,11 @@ class IntelligentFeatureCompletionSystem:
                 'Churn & Reduction': -user_arr * 0.05
             }
         else:  # Large company (> $10M ARR)
-            defaults = {
-                'Gross Margin (in %)': 80,
+            raw_defaults = {
+                'Gross Margin (in %)': 0.80,
                 'Net Profit/Loss Margin (in %)': -5,
-                'Headcount (HC)': max(1, int(user_arr / 200000)),
-                'Customers (EoP)': max(1, int(user_arr / 8000)),
+                'Headcount (HC)': max(1, int(user_arr / 200)),
+                'Customers (EoP)': max(1, int(user_arr / 8)),
                 'Sales & Marketing': user_arr * 0.3,
                 'R&D': user_arr * 0.2,
                 'G&A': user_arr * 0.1,
@@ -339,6 +348,12 @@ class IntelligentFeatureCompletionSystem:
                 'Expansion & Upsell': user_arr * 0.08,
                 'Churn & Reduction': -user_arr * 0.03
             }
+
+        # Build a lookup that accepts both raw and sanitized names.
+        defaults = {}
+        for raw_name, value in raw_defaults.items():
+            defaults[raw_name] = value
+            defaults[_sanitize_name(raw_name)] = value
         
         return defaults.get(feature, 0)
     

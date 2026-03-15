@@ -79,15 +79,12 @@ class RuleBasedHealthPredictor:
         metrics['recent_momentum'] = qoq3  # Q3→Q4 most important
         
         # 2. Net Revenue Retention (NRR)
-        if tier2_data and 'churn_rate' in tier2_data and 'expansion_rate' in tier2_data:
-            churn_rate = tier2_data['churn_rate']
-            expansion_rate = tier2_data['expansion_rate']
-            # Convention: values are always in percentage points (e.g. 5 means 5%).
-            # Guard against callers who pass decimals (e.g. 0.05 for 5%):
-            # any value strictly below 1 is almost certainly a decimal encoding,
-            # since sub-1% churn/expansion is unrealistic for SaaS.
-            churn_pct = churn_rate if churn_rate >= 1 else churn_rate * 100
-            expansion_pct = expansion_rate if expansion_rate >= 1 else expansion_rate * 100
+        churn_val = tier2_data.get('churn_rate') if tier2_data else None
+        expansion_val = tier2_data.get('expansion_rate') if tier2_data else None
+        if churn_val is not None and expansion_val is not None:
+            # Values arrive in percentage points (normalized by schema validator).
+            churn_pct = churn_val
+            expansion_pct = expansion_val
             nrr = 100 - churn_pct + expansion_pct
             metrics['nrr'] = nrr
             metrics['churn_rate'] = churn_pct / 100
@@ -107,9 +104,11 @@ class RuleBasedHealthPredictor:
             metrics['_estimated_flags']['nrr'] = True
         
         # 3. CAC Payback Period
-        if tier2_data and 'sales_marketing' in tier2_data and 'customers' in tier2_data:
-            sales_marketing = tier2_data['sales_marketing']
-            customers = tier2_data['customers']
+        sm_val = tier2_data.get('sales_marketing') if tier2_data else None
+        cust_val = tier2_data.get('customers') if tier2_data else None
+        if sm_val is not None and cust_val is not None:
+            sales_marketing = sm_val
+            customers = cust_val
             
             if customers > 0 and sales_marketing > 0:
                 cac = sales_marketing / customers  # CAC per customer
@@ -142,8 +141,9 @@ class RuleBasedHealthPredictor:
         metrics['cac_payback_months'] = cac_payback_months
         
         # 4. Rule of 40
-        if tier2_data and 'gross_margin' in tier2_data:
-            gross_margin = tier2_data['gross_margin']
+        gm_val = tier2_data.get('gross_margin') if tier2_data else None
+        if gm_val is not None:
+            gross_margin = gm_val
             # Estimate EBITDA margin (typically lower than gross margin)
             # For SaaS, EBITDA margin often = Gross Margin - (S&M + R&D + G&A as % of revenue)
             # Simplified: assume EBITDA margin ≈ Gross Margin - 30-40%
@@ -161,14 +161,12 @@ class RuleBasedHealthPredictor:
         metrics['ebitda_margin'] = ebitda_margin
         
         # 5. Burn Rate and Runway
-        if tier2_data:
-            cash_burn = abs(tier2_data.get('cash_burn', 0))  # Usually negative, take abs
-            runway_months = tier2_data.get('runway_months', None)
-            
-            if 'cash_burn' in tier2_data:
-                metrics['_estimated_flags']['cash_burn'] = False
-            else:
-                metrics['_estimated_flags']['cash_burn'] = True
+        cb_val = tier2_data.get('cash_burn') if tier2_data else None
+        rw_val = tier2_data.get('runway_months') if tier2_data else None
+        if cb_val is not None:
+            cash_burn = abs(cb_val)
+            runway_months = rw_val
+            metrics['_estimated_flags']['cash_burn'] = False
             
             if runway_months is not None:
                 metrics['_estimated_flags']['runway'] = False
@@ -409,10 +407,8 @@ class RuleBasedHealthPredictor:
             )
             confidence = "low"
 
-        # Convert annual growth to quarterly growth (approximate)
-        # Annual growth = (1 + quarterly_growth)^4 - 1
-        # So quarterly_growth ≈ annual_growth / 4 (simplified for small growth rates)
-        quarterly_growth = projected_annual_growth / 4
+        # Convert annual growth to quarterly compound rate.
+        quarterly_growth = (1 + projected_annual_growth) ** 0.25 - 1
 
         band = 0.25 if is_volatile else 0.10
         

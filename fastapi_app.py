@@ -26,6 +26,10 @@ app.include_router(tier_predictions.router)
 app.include_router(macro.router)
 app.include_router(tier_system.router)
 
+import pickle as _pkl
+with open(project_root / "lightgbm_financial_model.pkl", "rb") as _f:
+    _model_r2 = _pkl.load(_f).get("overall_r2", 0.85)
+
 print("Production-Ready Financial Forecasting API Initialized")
-print("Model Accuracy: R² = 0.8509 (85.09%)")
-print("Navigate to http://127.0.0.1:8000/ for API info.") 
+print(f"Model Accuracy: R² = {_model_r2:.4f}")
+print("Navigate to http://127.0.0.1:8000/ for API info.")

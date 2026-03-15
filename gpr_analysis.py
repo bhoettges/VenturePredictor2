@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 GPR_URL = "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls"
 CACHE_FILE = "gpr_data_cache.xlsx"
@@ -10,13 +10,14 @@ CACHE_DAYS = 31  # Update once a month
 
 
 def fetch_and_cache_gpr():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if os.path.exists(CACHE_FILE) and os.path.exists(CACHE_TIMESTAMP):
         with open(CACHE_TIMESTAMP, 'r') as f:
             last_fetch = datetime.fromisoformat(f.read().strip())
         if (now - last_fetch).days < CACHE_DAYS:
             return CACHE_FILE
-    r = requests.get(GPR_URL)
+    r = requests.get(GPR_URL, timeout=30)
+    r.raise_for_status()
     with open(CACHE_FILE, 'wb') as f:
         f.write(r.content)
     with open(CACHE_TIMESTAMP, 'w') as f:

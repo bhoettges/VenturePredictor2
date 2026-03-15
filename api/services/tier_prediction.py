@@ -175,7 +175,7 @@ def perform_tier_based_forecast(request: TierBasedRequest):
             'total_growth_percent': total_growth,
             'final_yoy_growth_percent': predictions[-1]['YoY_Growth_Percent'],
             'tier_used': 'Tier 1 + Tier 2' if tier2_data else 'Tier 1 Only',
-            'model_accuracy': 'R² = 0.8509 (85.09%)',
+            'model_accuracy': f"R² = {hybrid_system.ml_system.model_data.get('overall_r2', 0.85):.4f}",
             'confidence_intervals': f'±{band_pct}% on all predictions',
             'user_input_arr_2023': {
                 'q1': request.q1_arr,
@@ -227,8 +227,17 @@ def perform_tier_based_forecast(request: TierBasedRequest):
         # Always attach health scorecard so the chatbot has real numbers
         ha = metadata.get('health_assessment') or {}
         hm = metadata.get('health_metrics') or {}
-        estimated_flags = hm.get('_estimated_flags', {})
-        estimated_list = [k for k, v in estimated_flags.items() if v]
+        estimated_list = metadata.get('estimated_metrics', [])
+        if not estimated_list:
+            estimated_flags = hm.get('_estimated_flags', {})
+            flag_labels = {
+                'nrr': 'NRR (churn/expansion not provided)',
+                'cac_payback': 'CAC Payback (S&M/customers not provided)',
+                'rule_of_40': 'Rule of 40 (gross margin not provided)',
+                'runway': 'Runway (not provided)',
+                'cash_burn': 'Cash burn (not provided)',
+            }
+            estimated_list = [flag_labels.get(k, k) for k, v in estimated_flags.items() if v]
 
         if ha or hm:
             is_edge = metadata.get('prediction_method') == 'Rule-Based Health Assessment'
@@ -314,7 +323,6 @@ def predict_from_csv(file_content: bytes, company_name: str = None):
         # Get the last 4 quarters (assuming they're in chronological order)
         last_4_quarters = df.tail(4)
         
-        latest_arr = last_4_quarters.iloc[-1]['ARR_End_of_Quarter']
         headcount = int(last_4_quarters.iloc[-1]['Headcount'])
         
         from api.models.schemas import VALID_SECTORS
@@ -344,8 +352,8 @@ def predict_from_csv(file_content: bytes, company_name: str = None):
                 'sales_marketing': latest_row.get('Sales_Marketing', tier1_data['q4_arr'] * 0.4),
                 'cash_burn': latest_row.get('Cash_Burn', -tier1_data['q4_arr'] * 0.3),
                 'customers': latest_row.get('Customers', int(tier1_data['q4_arr'] / 5000)),
-                'churn_rate': latest_row.get('Churn_Rate', 0.05),
-                'expansion_rate': latest_row.get('Expansion_Rate', 0.10)
+                'churn_rate': latest_row.get('Churn_Rate', 5),
+                'expansion_rate': latest_row.get('Expansion_Rate', 10)
             }
         
         # Create TierBasedRequest object

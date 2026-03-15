@@ -11,7 +11,7 @@ from api.services.macro_analysis import get_macro_analysis
 
 router = APIRouter()
 
-@router.get("/makro-analysis")
-def makro_analysis():
+@router.get("/macro-analysis")
+def macro_analysis():
     """Return the GPRH, VIX, MOVE, and BVP trend analysis for the last year."""
     return get_macro_analysis()

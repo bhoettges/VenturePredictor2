@@ -34,6 +34,16 @@ class HybridPredictionSystem:
         means $3.456M).  User input arrives in absolute dollars, so we convert
         all monetary values to thousands here to match the model's scale.
         Growth rates, percentages, headcount and customer counts are unaffected.
+
+        Known limitations (only 4 quarters of user data vs. multi-year training history):
+          - *_lag_4 features are always NaN (need 8+ quarters); filled by feature
+            completion system using similar-company medians.
+          - *_roll_std_4q for single-value inputs (headcount, S&M, etc.) are 0
+            because the user provides one value broadcast to all quarters.
+          - ARR YoY Growth is approximated from Q1-to-Q4 spread, not true
+            year-over-year (would require prior-year data).
+          - growth_momentum = growth_lag1 - growth_lag2, matching training; with
+            constant YoY growth this is 0/NaN (filled by feature completion).
         """
         
         K = 1000.0  # conversion factor: absolute dollars -> thousands
@@ -60,35 +70,51 @@ class HybridPredictionSystem:
         
         q1, q2, q3, q4 = arr_values
         hc = tier1_data['headcount']
-        net_new_per_q = [q2 - q1, q3 - q2, q4 - q3, q4 - q3]
 
-        company_df['Revenue'] = arr_values
-        company_df['LTM Revenue'] = [sum(arr_values)] * 4
+        # Match training pipeline: cARR.diff() produces [NaN, q2-q1, q3-q2, q4-q3],
+        # then NaN is filled with 0 (flow variable convention).
+        company_df['Net New ARR'] = company_df['cARR'].diff().fillna(0)
+
+        quarterly_revenue = [a / 4 for a in arr_values]
+        company_df['Revenue'] = quarterly_revenue
+        company_df['LTM Revenue'] = [sum(quarterly_revenue)] * 4
         company_df['Revenue Run Rate (RRR)'] = arr_values
-        company_df['Net New ARR'] = net_new_per_q
         company_df['ARR / HC'] = [a / hc if hc > 0 else 0 for a in arr_values]
 
         t2 = tier2_data or {}
-        gross_margin = t2.get('gross_margin', 75)
-        sm = t2.get('sales_marketing', q4 * 0.4 * K) / K   # convert to thousands
-        cash_burn = t2.get('cash_burn', -q4 * 0.3 * K) / K  # convert to thousands
-        customers = t2.get('customers', max(1, int(q4 * K / 5000)))
-        churn_rate = t2.get('churn_rate', 0.05)
-        expansion_rate = t2.get('expansion_rate', 0.10)
+        _gm = t2.get('gross_margin')
+        gross_margin = _gm if _gm is not None else 75           # percentage points
+        _sm = t2.get('sales_marketing')
+        sm = (_sm if _sm is not None else (q4 * 0.4 * K)) / K   # thousands
+        _cb = t2.get('cash_burn')
+        cash_burn = (_cb if _cb is not None else (-q4 * 0.3 * K)) / K
+        _cust = t2.get('customers')
+        customers = _cust if _cust is not None else max(1, int(q4 * K / 5000))
+        _cr = t2.get('churn_rate')
+        churn_rate = _cr if _cr is not None else 5               # percentage points
+        _er = t2.get('expansion_rate')
+        expansion_rate = _er if _er is not None else 10           # percentage points
 
-        company_df['Gross Margin (in %)'] = [gross_margin] * 4
+        gm_frac = gross_margin / 100  # fraction for model columns
+
+        # Training data stores Gross Margin as a 0-1 fraction, not 0-100 pct.
+        company_df['Gross Margin (in %)'] = [gm_frac] * 4
         company_df['Sales & Marketing'] = [sm] * 4
         company_df['Cash Burn (OCF & ICF)'] = [cash_burn] * 4
         company_df['Customers (EoP)'] = [customers] * 4
-        company_df['Churn & Reduction'] = [-a * churn_rate for a in arr_values]
-        company_df['Expansion & Upsell'] = [a * expansion_rate for a in arr_values]
+        company_df['Churn & Reduction'] = [-a * (churn_rate / 100) for a in arr_values]
+        company_df['Expansion & Upsell'] = [a * (expansion_rate / 100) for a in arr_values]
 
-        company_df['Gross Profit'] = [a * gross_margin / 100 for a in arr_values]
-        company_df['S&M as % of Revenue'] = [sm / q4 * 100 if q4 > 0 else 0] * 4
-        magic = (net_new_per_q[-1] * 4) / sm if sm > 0 else 0
+        # Gross Profit is quarterly: Revenue × GM fraction.
+        company_df['Gross Profit'] = [r * gm_frac for r in quarterly_revenue]
+        # Training stores S&M/Revenue as a ratio (0-1+), not a percentage.
+        company_df['S&M as % of Revenue'] = [sm / q4 if q4 > 0 else 0] * 4
+        q4_net_new = company_df['Net New ARR'].iloc[-1]
+        magic = (q4_net_new * 4) / sm if sm > 0 else 0
         company_df['LTM Magic Number (ARR)'] = [magic] * 4
-        ebitda_margin = gross_margin - 35
-        rule_of_40 = (annual_growth * 100) + ebitda_margin
+        # Training stores Rule-of-40 as a fraction sum (growth_frac + margin_frac).
+        ebitda_frac = gm_frac - 0.35
+        rule_of_40 = annual_growth + ebitda_frac
         company_df['LTM Rule of 40% (ARR)'] = [rule_of_40] * 4
 
         # --- Lag and rolling features (must match training pipeline) ---
@@ -219,6 +245,7 @@ class HybridPredictionSystem:
                     'health_tier': result['health_tier'],
                     'health_assessment': result['health_assessment'],
                     'health_metrics': result['health_metrics'],
+                    'estimated_metrics': result.get('estimated_metrics', []),
                     'reasoning': result['reasoning'],
                     'confidence': result['confidence'],
                     'key_assumption': result.get('key_assumption', 'N/A'),
@@ -233,6 +260,7 @@ class HybridPredictionSystem:
                 # Rule-based failed, fall back to ML
                 print("⚠️ Rule-based prediction failed, falling back to ML model")
                 predictions, metadata = self._use_ml_model(tier1_data, tier2_data, trend_analysis)
+                metadata['routing_override'] = routing_override
         
         else:
             # Use ML model
@@ -323,13 +351,12 @@ class HybridPredictionSystem:
                 'Optimistic_ARR': current_arr * 1.1,
                 'YoY_Growth': yoy_growth,
                 'YoY_Growth_Percent': yoy_growth * 100,
-                'QoQ_Growth_Percent': qoq_rate * 100
             })
         
         metadata = {
             'prediction_method': 'ML_Model',
             'trend_analysis': trend_analysis,
-            'model_accuracy': 'R² = 0.8509 (85.09%)',
+            'model_accuracy': f"R² = {self.ml_system.model_data.get('overall_r2', 0.85):.4f}",
             'similar_companies_found': len(similar_companies),
             'raw_yoy_predictions': [float(x) for x in yoy_predictions],
             'raw_annual_growth_pct': raw_annual_growth * 100,
